@@ -22,7 +22,7 @@ export function tuneCharacterMaterials(root, renderer) {
       const n = m.name || '';
       if (n.startsWith('skin')) { m.sheen = 0.25; m.sheenColor = new THREE.Color(0xff8a5a); m.sheenRoughness = 0.5; m.roughness = Math.max(m.roughness, 0.5); }
       if (n.startsWith('cornea')) { m.transparent = true; m.opacity = 0.12; m.roughness = 0.0; m.clearcoat = 1; m.clearcoatRoughness = 0.0; m.depthWrite = false; m.envMapIntensity = 2.2; }
-      if (n.startsWith('hair')) { m.envMapIntensity = 1.2; }
+      if (n.startsWith('hair')) { m.envMapIntensity = 0.75; }  // matte silk, not mirror gloss
       if (n.startsWith('fabric')) { m.sheen = 0.35; m.sheenRoughness = 0.65; m.sheenColor = (m.map ? new THREE.Color(0xf0d8c8) : m.color.clone().lerp(new THREE.Color(0xffffff), 0.35)); }
     }
   });

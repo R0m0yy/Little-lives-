@@ -50,9 +50,9 @@ M = dict(
     lash=K.material('lash', base='#160d0b', rough=0.5),
     brow=K.material('hair_brow', base='#3a2218', rough=0.7),
     lip=K.material('skin_lip', base='#b85a4e', rough=0.45, spec=0.5),
-    hair=K.material('hair', base='#0f0a0c', rough=0.3, aniso=0.5, spec=0.65),
-    hairCap=K.material('hair_cap', base='#0f0a0c', rough=0.3, aniso=0.5, spec=0.65),
-    bun=K.material('hair_bun', base='#3a2218', rough=0.32, aniso=0.5, spec=0.65),
+    hair=K.material('hair', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
+    hairCap=K.material('hair_cap', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
+    bun=K.material('hair_bun', base='#3a2218', rough=0.48, aniso=0.3, spec=0.45, sheen=0.4, sheen_tint='#c09070', sheen_rough=0.45),
     blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.8, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     lace=K.material('fabric_lace', tex=os.path.join(TEX, 'lace.png'), rough=0.85, sheen=0.5),
@@ -295,13 +295,14 @@ def _flow_basis():
 FLOW = _flow_basis()
 
 
-def clump(d, n=9, depth=0.42):
-    """Broad hair clumps: grooves along great circles converging on the bun."""
+def clump(d, n=11, depth=0.62):
+    """Sculpted clumps: rounded lobes with sharp valleys, flowing along great circles into the bun."""
     a, e1, e2 = FLOW
     psi = math.atan2(d.dot(e2), d.dot(e1))
-    w = 0.5 - 0.5 * math.cos(n * psi + 0.6 * math.sin(3 * psi) + 0.5 * math.sin(7 * psi + 1.0))
-    conv = K.smoothstep(0.98, 0.6, d.dot(a))  # grooves fade out where they meet the bun
-    return 1 - depth * (w ** 4) * conv
+    ph = n * psi / 2 + 0.7 * math.sin(3 * psi) + 0.45 * math.sin(5 * psi + 1.3)  # irregular clump widths
+    lobe = abs(math.sin(ph)) ** 0.45                                               # round top, V-shaped valley
+    conv = K.smoothstep(0.985, 0.62, d.dot(a))                                     # clumps merge into the bun
+    return 1 - depth * (1 - lobe) * conv
 
 
 def cap_point(d, lift=0.0):
@@ -343,11 +344,35 @@ def strand_to_bun(name, d0, width, thick, lift0=0.004, via=None, n=36, mat=None,
     return ob
 
 
-hs = []
-# side-swept forehead lock (part on character's left / viewer's right, sweeping across the forehead)
-part = V((0.42, -0.55, 0.75)).normalized()
-for o in hs:
-    K.subsurf(o, 1)
+def dirs_path(ws, n):
+    """Piecewise slerp through unit-direction waypoints."""
+    out = []
+    seg = len(ws) - 1
+    for k in range(n):
+        t = k / (n - 1) * seg
+        i = min(int(t), seg - 1)
+        out.append(slerp(ws[i], ws[i + 1], t - i).normalized())
+    return out
+
+
+def lock(name, ws, width, thick, lift, n=60):
+    ds = dirs_path([w.normalized() for w in ws], n)
+    pts, nrm = [], []
+    for k, d in enumerate(ds):
+        t = k / (n - 1)
+        p = cap_point(d, lift * (0.4 + 0.6 * math.sin(math.pi * min(1, t * 1.15))))
+        pts.append(p); nrm.append((p - C).normalized())
+    prof = lambda t: (thick * (0.30 + 0.70 * math.sin(math.pi * min(1, 0.04 + t * 1.05)) ** 0.5),
+                      width * (0.30 + 0.70 * math.sin(math.pi * min(1, 0.06 + t)) ** 0.6))
+    # a soft groove down the middle of the lock so it reads as two twisted clumps
+    groove = lambda t, ang: 1 - 0.18 * math.exp(-((math.cos(ang) - 1) ** 2) / 0.05)
+    return K.subsurf(K.sweep(name, pts, prof, nprof=18, mat=M['hair'], normals=nrm, uv_len=4, offset=groove), 1)
+
+
+# side-swept forehead lock: from the parting (character's left / viewer's right) across the forehead, back to the bun
+part = V((0.45, -0.50, 0.74))
+lock('HairLock0', [part, V((0.10, -0.76, 0.68)), V((-0.50, -0.66, 0.58)), V((-0.86, -0.15, 0.52)), bun_dir], 0.058, 0.016, 0.022)
+lock('HairLock1', [part + V((0.06, 0.05, 0.06)), V((0.05, -0.64, 0.80)), V((-0.45, -0.56, 0.70)), V((-0.80, -0.05, 0.64)), bun_dir], 0.050, 0.014, 0.030)
 
 
 # curly tendrils at the temples
@@ -367,23 +392,25 @@ tendril('TendrilL', head_raw(V((-0.93, -0.33, 0.05)).normalized()) + V((-0.006, 
 # bun: dark core + ringlet coils
 K.subsurf(K.ellipsoid('BunCore', BUN, (P['bun_r'] * 0.86, P['bun_r'] * 0.8, P['bun_r'] * 0.86), mat=M['bun']), 1)
 golden = math.pi * (3 - math.sqrt(5))
-for k in range(26):
-    zz = 1 - 2 * (k + 0.5) / 26
+NCURL = 48
+for k in range(NCURL):
+    zz = 1 - 2 * (k + 0.5) / NCURL
     rr = math.sqrt(1 - zz * zz)
     d = V((math.cos(golden * k) * rr, math.sin(golden * k) * rr, zz))
     if d.dot(-bun_dir) > 0.55:  # inside the head: skip
         continue
-    cen = BUN + d * P['bun_r'] * 0.82
+    layer = 0.70 if k % 3 == 0 else 0.86
+    cen = BUN + d * P['bun_r'] * layer
     t1 = d.cross(V((0, 0, 1)) if abs(d.z) < 0.9 else V((1, 0, 0))).normalized()
     t2 = d.cross(t1)
-    rad = P['bun_r'] * rnd.uniform(0.34, 0.46)
+    rad = P['bun_r'] * rnd.uniform(0.20, 0.27)
     pts = []
     for i in range(40):
         t = i / 39
-        a = t * K.TAU * 1.15 + rnd.random()
-        rr2 = rad * (1 - 0.45 * t)
+        a = t * K.TAU * 1.7 + rnd.random()
+        rr2 = rad * (1 - 0.55 * t)
         pts.append(cen + (t1 * math.cos(a) + t2 * math.sin(a)) * rr2 + d * (0.25 - t * 0.5) * rad)
-    K.subsurf(K.sweep(f'Curl{k}', pts, lambda t: (0.017 * (1 - 0.55 * t), 0.015 * (1 - 0.55 * t)), nprof=10, mat=M['bun'], uv_len=3), 1)
+    K.subsurf(K.sweep(f'Curl{k}', pts, lambda t: (0.0105 * (1 - 0.5 * t), 0.0095 * (1 - 0.5 * t)), nprof=12, mat=M['bun'], uv_len=3), 1)
 
 # ================================================================== BODY (union of arms + hands + legs + neck)
 def arm_parts(sg):
