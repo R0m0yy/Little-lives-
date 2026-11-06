@@ -19,7 +19,7 @@ def _tiled(d, W, H, fn, x, y, margin):
                 fn(d, x + ox, y + oy)
 
 
-def floral(path, W=1024, H=1024, seed=3, base=(232, 204, 190), density=2.6):
+def floral(path, W=1024, H=1024, seed=3, base=(234, 214, 198), density=1.15, soft=2.2):
     """Cream cotton with scattered small roses / blossoms and leaves (design-board pinafore)."""
     rnd = random.Random(seed)
     im = Image.new('RGB', (W, H), base)
@@ -29,9 +29,10 @@ def floral(path, W=1024, H=1024, seed=3, base=(232, 204, 190), density=2.6):
         x, y = rnd.randrange(W), rnd.randrange(H)
         v = rnd.randint(-10, 6)
         d.point((x, y), fill=tuple(max(0, min(255, c + v)) for c in base))
-    pal = [((214, 96, 80), (178, 60, 52)), ((228, 128, 100), (196, 84, 66)), ((140, 160, 200), (98, 120, 170)), ((214, 96, 80), (178, 60, 52)),
-           ((232, 196, 112), (206, 160, 70)), ((214, 132, 160), (180, 96, 128)), ((240, 170, 140), (220, 130, 104))]
-    leaf = [(150, 168, 120), (124, 146, 104), (170, 182, 140)]
+    # muted, board-like palette: dusty coral, rose, dusty blue, soft gold, peach; sage leaves
+    pal = [((212, 118, 98), (184, 86, 72)), ((222, 150, 132), (198, 116, 100)), ((150, 166, 196), (118, 136, 172)), ((212, 118, 98), (184, 86, 72)),
+           ((226, 196, 132), (200, 166, 96)), ((206, 140, 160), (178, 108, 132)), ((236, 180, 150), (214, 146, 118))]
+    leaf = [(160, 172, 134), (138, 154, 118), (176, 186, 150)]
 
     def flower(d, x, y, s, c):
         main, dark = c
@@ -49,7 +50,7 @@ def floral(path, W=1024, H=1024, seed=3, base=(232, 204, 190), density=2.6):
 
     items = []
     for _ in range(int(150 * density)):
-        items.append((rnd.random() * W, rnd.random() * H, rnd.uniform(18, 38), rnd.choice(pal)))
+        items.append((rnd.random() * W, rnd.random() * H, rnd.uniform(34, 62), rnd.choice(pal)))
     for x, y, s, c in items:
         _tiled(d, W, H, lambda d, X, Y: leaves(d, X, Y, s), x, y, 40)
     for x, y, s, c in items:
@@ -59,11 +60,11 @@ def floral(path, W=1024, H=1024, seed=3, base=(232, 204, 190), density=2.6):
                 if -40 < x + ox < W + 40 and -40 < y + oy < H + 40:
                     rnd.setstate(st)
                     flower(d, x + ox, y + oy, s, c)
-    for _ in range(int(500 * density)):  # tiny dots / buds
+    for _ in range(int(260 * density)):  # tiny dots / buds
         x, y = rnd.random() * W, rnd.random() * H
         c = rnd.choice(pal)[0]
         _tiled(d, W, H, lambda d, X, Y: d.ellipse((X - 2.5, Y - 2.5, X + 2.5, Y + 2.5), fill=c), x, y, 5)
-    im = im.filter(ImageFilter.GaussianBlur(0.8))
+    im = im.filter(ImageFilter.GaussianBlur(soft))
     im.save(path)
 
 
@@ -71,7 +72,7 @@ def lace(path, W=1024, H=128, base=(240, 222, 200)):
     """Broderie-anglaise band: eyelet flowers, scalloped lower edge shading, bands at top."""
     im = Image.new('RGB', (W, H), base)
     d = ImageDraw.Draw(im)
-    hole = (196, 170, 150)
+    hole = (168, 136, 112)
     n = 24
     for k in range(n):
         cx = (k + 0.5) * W / n
@@ -102,7 +103,7 @@ def trim(path, W=1024, H=64):
     im.filter(ImageFilter.GaussianBlur(0.6)).save(path)
 
 
-def weave(path, W=512, H=512, base=(236, 212, 188), seed=5):
+def weave(path, W=512, H=512, base=(218, 190, 158), seed=5):
     """Fine cotton/voile with faint woven dots (blouse)."""
     rnd = random.Random(seed)
     im = Image.new('RGB', (W, H), base)

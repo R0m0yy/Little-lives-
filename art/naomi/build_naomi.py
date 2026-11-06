@@ -56,13 +56,14 @@ M = dict(
     hair=K.material('hair', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
     hairCap=K.material('hair_cap', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
     bun=K.material('hair_bun', base='#3a2218', rough=0.48, aniso=0.3, spec=0.45, sheen=0.4, sheen_tint='#c09070', sheen_rough=0.45),
-    blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.8, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
+    blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.85, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     lace=K.material('fabric_lace', tex=os.path.join(TEX, 'lace.png'), rough=0.85, sheen=0.5),
     trim=K.material('fabric_trim', tex=os.path.join(TEX, 'trim.png'), rough=0.7, sheen=0.4),
     under=K.material('fabric_under', base='#6e2622', rough=0.7, sheen=0.6, sheen_tint='#ffb0a0'),
     tights=K.material('fabric_tights', base='#3e1d10', rough=0.6, sheen=0.5, sheen_tint='#c08060'),
     shoe=K.material('leather_shoe', base='#2c1209', rough=0.32, coat=0.6, coat_rough=0.2),
+    pearl=K.material('pearl', base='#f4ece0', rough=0.25, coat=0.8),
     gold=K.material('metal_gold', base='#e0b060', metal=1.0, rough=0.25),
 )
 
@@ -550,6 +551,20 @@ for sg in (1, -1):
         return A + ax * (L + v * 0.024 + w) + (side * math.cos(th) + fwd * math.sin(th)) * r
     K.subsurf(K.surface(f'Cuff{sg}', cuff, 104, 5, wrap_u=True, mat=M['blouse']), 1)
 
+# lace yoke over the upper chest + pearl buttons
+def yoke(u, v):
+    th = u * K.TAU
+    z = K.lerp(0.640, 0.582 - 0.006 * abs(math.sin(th * 18)) * v, v)   # scalloped lower edge
+    k = max(0.0, (z - 0.578) / (0.652 - 0.578))
+    rx = K.lerp(0.099, 0.046, k ** 1.3) + 0.0035
+    ry = K.lerp(0.077, 0.046, k ** 1.3) + 0.0035
+    return V((math.sin(th) * rx, -math.cos(th) * ry + 0.004 * k, z))
+K.subsurf(K.surface('Yoke', yoke, 144, 10, wrap_u=True, mat=M['lace'], uv=lambda i, j: (j / 144 * 6, i / 9)), 1)
+for k in range(4):
+    z = 0.632 - k * 0.016
+    yy = -(0.046 + (0.077 - 0.046) * (1 - (z - 0.578) / 0.074) ** 1.3) - 0.008
+    K.subsurf(K.ellipsoid(f'Button{k}', V((0, yy, z)), (0.0035, 0.002, 0.0035), mat=M['pearl'], nu=12, nv=8), 1)
+
 # pinafore bodice + straps
 bprof = [(r[0] + 0.004, r[1] + 0.004, r[2]) for r in prof if 0.47 < r[2] < 0.585]
 bprof = [(0.096, 0.078, 0.585)] + bprof + [(0.082, 0.069, 0.476)]
@@ -561,6 +576,21 @@ for sg in (1, -1):
         a = (t * 2 - 1) * math.pi * 0.5
         sp.append(V((sg * (0.058 + 0.012 * math.cos(a)), math.sin(a) * 0.078, 0.583 + 0.046 * math.cos(a) ** 0.7)))
     K.subsurf(K.sweep(f'Strap{sg}', sp, lambda t: (0.0035, 0.011), nprof=8, mat=M['floral'], up=V((sg, 0, 0))), 1)
+    # ruffle along the outer edge of the strap
+    fr = []
+    for k in range(60):
+        t = k / 59
+        a = (t * 2 - 1) * math.pi * 0.5
+        c0 = V((sg * (0.058 + 0.012 * math.cos(a)), math.sin(a) * 0.078, 0.583 + 0.046 * math.cos(a) ** 0.7))
+        out = V((-sg, 0, 0.35 * math.cos(a))).normalized()   # inner edge: visible on the chest, not under the puff
+        nrm = V((c0.x, c0.y, 0)).normalized()
+        row = []
+        for j in range(4):
+            v = j / 3
+            wave = 0.0035 * v * math.sin(t * 46)
+            row.append(c0 + out * (0.010 + 0.013 * v) + nrm * (0.002 + wave))
+        fr.append(row)
+    K.subsurf(K.build(f'StrapRuffle{sg}', fr, mat=M['lace'], uv=lambda i, j: (j / 3, i / 59 * 6)), 1)
 # waistband
 K.subsurf(K.lathe('Waistband', [(0.086, 0.071, 0.494), (0.087, 0.072, 0.484), (0.087, 0.072, 0.474), (0.086, 0.071, 0.464)],
                   nu=64, mat=M['trim'], uv_scale=(1, 1)), 1)
@@ -584,7 +614,7 @@ def fold(t, th):
 
 
 sk = [(*skirt_r(i / (NS - 1)), K.lerp(Z0, Z1, i / (NS - 1))) for i in range(NS)]
-K.subsurf(K.lathe('Skirt', sk, nu=128, mat=M['floral'], disp=lambda u, v, th: fold(v, th), uv_scale=(4, 1.5)), 1)
+K.subsurf(K.lathe('Skirt', sk, nu=128, mat=M['floral'], disp=lambda u, v, th: fold(v, th), uv_scale=(3, 1.1)), 1)
 # lace hem band (follows the skirt folds, scalloped lower edge)
 def lace_band(u, v):
     th = u * K.TAU
