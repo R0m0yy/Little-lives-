@@ -19,16 +19,16 @@ os.makedirs(TEX, exist_ok=True)
 
 # ------------------------------------------------------------------ parameters (tuned in compare rounds)
 P = dict(
-    head_c=V((0, 0.0, 0.800)), head_rx=0.142, head_ry=0.136, head_rz_top=0.158, head_rz_bot=0.150,
-    cheek_amp=0.07, cheek_low=-0.36, chin_narrow=0.30,
-    eye_x=0.068, eye_z=0.788, eye_r=0.041, eye_depth=0.62, eye_out=0.10,
+    head_c=V((0, 0.0, 0.800)), head_rx=0.150, head_ry=0.138, head_rz_top=0.152, head_rz_bot=0.152,
+    cheek_amp=0.10, cheek_low=-0.40, chin_narrow=0.10,
+    eye_x=0.073, eye_z=0.786, eye_r=0.046, eye_depth=0.62, eye_out=0.10,
     lid_up=40, lid_low=-40, lid_corner=4,
     brow_z=0.842,
     mouth_z=0.703, nose_z=0.742,
     collar_z=0.645, waist_z=0.474, hem_z=0.128, hem_rx=0.235, hem_ry=0.205,
     shoulder=V((0.100, 0.0, 0.598)), elbow=V((0.150, 0.004, 0.452)), wrist=V((0.166, -0.006, 0.330)),
     hand_c=V((0.168, -0.008, 0.300)),
-    bun_c=V((-0.128, 0.065, 0.872)), bun_r=0.066,
+    bun_c=V((-0.150, 0.060, 0.868)), bun_r=0.078,
 )
 C = P['head_c']
 rnd = random.Random(7)
@@ -52,7 +52,7 @@ M = dict(
     lip=K.material('skin_lip', base='#b85a4e', rough=0.45, spec=0.5),
     hair=K.material('hair', base='#0f0a0c', rough=0.3, aniso=0.5, spec=0.65),
     hairCap=K.material('hair_cap', base='#0f0a0c', rough=0.3, aniso=0.5, spec=0.65),
-    bun=K.material('hair_bun', base='#2c1a16', rough=0.38, aniso=0.6, spec=0.6),
+    bun=K.material('hair_bun', base='#3a2218', rough=0.32, aniso=0.5, spec=0.65),
     blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.8, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     lace=K.material('fabric_lace', tex=os.path.join(TEX, 'lace.png'), rough=0.85, sheen=0.5),
@@ -133,7 +133,7 @@ def bake_head_tex(path, W=512, Hh=256):
     for y in range(Hh):
         for x in range(W):
             c = blush(head_point(sphere_dir((x + 0.5) / W, (y + 0.5) / Hh)))
-            px[x, Hh - 1 - y] = tuple(lin2s(c[i]) for i in range(3))
+            px[x, y] = tuple(lin2s(c[i]) for i in range(3))  # PIL row 0 = top = UV v 1 = sphere top
     im.save(path)
 
 
@@ -272,7 +272,7 @@ bun_dir = (BUN - C).normalized()
 
 def hair_keep(d):
     fx, fy, fz = d.x, -d.y, d.z
-    hl = 0.47 - 0.62 * fx * fx
+    hl = 0.60 - 0.70 * fx * fx
     keep_face = max(fz - hl, 0.22 - fy)
     keep_ear = max(0.74 - abs(fx), fz + 0.10, -0.30 - fy)
     keep_nape = fz + 0.58
@@ -280,8 +280,8 @@ def hair_keep(d):
 
 
 def hair_thick(d):
-    t = 0.03 + 0.20 * max(0, d.z) ** 1.2 + 0.05 * max(0, d.y)
-    t += 0.09 * gauss(d, V((0.18, -0.55, 0.80)), 0.42)       # lift above the parting / forehead
+    t = 0.04 + 0.24 * max(0, d.z) ** 1.6 + 0.05 * max(0, d.y) + 0.04 * abs(d.x)
+    t += 0.10 * gauss(d, V((0.18, -0.45, 0.85)), 0.40)       # pompadour lift above the parting       # lift above the parting / forehead
     return t
 
 
@@ -295,13 +295,13 @@ def _flow_basis():
 FLOW = _flow_basis()
 
 
-def clump(d, n=12, depth=0.20):
+def clump(d, n=9, depth=0.42):
     """Broad hair clumps: grooves along great circles converging on the bun."""
     a, e1, e2 = FLOW
     psi = math.atan2(d.dot(e2), d.dot(e1))
-    w = 0.5 - 0.5 * math.cos(n * psi + 0.6 * math.sin(3 * psi))
+    w = 0.5 - 0.5 * math.cos(n * psi + 0.6 * math.sin(3 * psi) + 0.5 * math.sin(7 * psi + 1.0))
     conv = K.smoothstep(0.98, 0.6, d.dot(a))  # grooves fade out where they meet the bun
-    return 1 - depth * (w ** 3) * conv
+    return 1 - depth * (w ** 4) * conv
 
 
 def cap_point(d, lift=0.0):
@@ -376,14 +376,14 @@ for k in range(26):
     cen = BUN + d * P['bun_r'] * 0.82
     t1 = d.cross(V((0, 0, 1)) if abs(d.z) < 0.9 else V((1, 0, 0))).normalized()
     t2 = d.cross(t1)
-    rad = P['bun_r'] * rnd.uniform(0.30, 0.42)
+    rad = P['bun_r'] * rnd.uniform(0.34, 0.46)
     pts = []
     for i in range(40):
         t = i / 39
         a = t * K.TAU * 1.15 + rnd.random()
         rr2 = rad * (1 - 0.45 * t)
         pts.append(cen + (t1 * math.cos(a) + t2 * math.sin(a)) * rr2 + d * (0.25 - t * 0.5) * rad)
-    K.subsurf(K.sweep(f'Curl{k}', pts, lambda t: (0.013 * (1 - 0.6 * t), 0.011 * (1 - 0.6 * t)), nprof=10, mat=M['bun'], uv_len=3), 1)
+    K.subsurf(K.sweep(f'Curl{k}', pts, lambda t: (0.017 * (1 - 0.55 * t), 0.015 * (1 - 0.55 * t)), nprof=10, mat=M['bun'], uv_len=3), 1)
 
 # ================================================================== BODY (union of arms + hands + legs + neck)
 def arm_parts(sg):
