@@ -51,7 +51,8 @@ M = dict(
     brow=K.material('hair_brow', base='#3a2218', rough=0.7),
     cornea=K.material('cornea', base='#ffffff', rough=0.0, coat=1.0, coat_rough=0.0, alpha=0.15),
     crease=K.material('skin_crease', base='#9a4a30', rough=0.6),
-    lip=K.material('skin_lip', base='#b85a4e', rough=0.45, spec=0.5),
+    lip=K.material('skin_lip', base='#c4604e', rough=0.38, spec=0.55),
+    mouth=K.material('skin_mouth', base='#7a2a22', rough=0.6),
     hair=K.material('hair', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
     hairCap=K.material('hair_cap', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
     bun=K.material('hair_bun', base='#3a2218', rough=0.48, aniso=0.3, spec=0.45, sheen=0.4, sheen_tint='#c09070', sheen_rough=0.45),
@@ -94,7 +95,10 @@ def head_raw(d):
 
 BUMPS = [  # (direction, amplitude (fraction of radius), sigma radians)
     (V((0.52, -0.78, -0.40)), 0.055, 0.33), (V((-0.52, -0.78, -0.40)), 0.055, 0.33),  # apple cheeks
-    (V((0, -0.97, -0.37)), 0.045, 0.085),   # nose button
+    (V((0, -0.97, -0.355)), 0.085, 0.064),  # nose button (tip)
+    (V((0, -0.96, -0.22)), 0.012, 0.05),    # soft bridge
+    (V((0.085, -0.96, -0.40)), 0.022, 0.040), (V((-0.085, -0.96, -0.40)), 0.022, 0.040),   # nostril wings
+    (V((0.045, -0.96, -0.425)), -0.010, 0.028), (V((-0.045, -0.96, -0.425)), -0.010, 0.028),  # nostril dimples
     (V((0, -0.95, -0.62)), 0.012, 0.12),    # chin pad
     (V((0, -0.94, -0.53)), -0.010, 0.07),   # mouth line
     (V((0, -0.85, 0.45)), 0.02, 0.4),       # forehead fullness
@@ -120,6 +124,10 @@ def blush(p):
     li = (0.62, 0.17, 0.13)
     c = [base[i] * (1 - w * 0.55) + bl[i] * w * 0.55 for i in range(3)]
     c = [c[i] * (1 - lip) + li[i] * lip for i in range(3)]
+    tip = gauss(d, V((0, -0.97, -0.34)), 0.045) * 0.45            # warm nose tip
+    under = gauss(d, V((0, -0.95, -0.445)), 0.035) * 0.35         # soft shadow under the nose
+    c = [c[i] * (1 - tip) + bl[i] * tip for i in range(3)]
+    c = [c[i] * (1 - under * 0.55) for i in range(3)]
     return (*c, 1.0)
 
 
@@ -270,17 +278,33 @@ for sg in (1, -1):
         bn.append((pp - C).normalized())
     K.subsurf(K.sweep(f'Brow{sg}', bp, lambda t: (0.0028, 0.0058 * (1 - 0.6 * t) * min(1, t * 6 + 0.35)), nprof=8, mat=M['brow'], normals=bn), 1)
 
-# mouth: small closed smile
-mp, mn = [], []
-for k in range(16):
-    t = k / 15 * 2 - 1
-    x = t * 0.021
-    z = P['mouth_z'] + 0.0055 * t * t - 0.0015
+# mouth: soft closed smile — darker line curving up at the corners, fuller lower lip, thin upper lip
+def on_face(x, z, lift):
     d = V((x / P['head_rx'], -0.97, (z - C.z) / P['head_rz_bot'])).normalized()
     pp = head_point(d)
-    mp.append(pp + (pp - C).normalized() * 0.0012)
-    mn.append((pp - C).normalized())
-K.sweep('Mouth', mp, lambda t: (0.0012, 0.0016 * (0.5 + 0.5 * math.sin(math.pi * t))), nprof=6, mat=M['lip'], normals=mn)
+    n = (pp - C).normalized()
+    return pp + n * lift, n
+
+
+def face_curve(name, fx, fz, n, lift, prof, mat):
+    pts, nrm = [], []
+    for k in range(n):
+        t = k / (n - 1) * 2 - 1
+        p, nn = on_face(fx(t), fz(t), lift(t) if callable(lift) else lift)
+        pts.append(p); nrm.append(nn)
+    return K.subsurf(K.sweep(name, pts, prof, nprof=10, mat=mat, normals=nrm), 1)
+
+
+MZ = P['mouth_z']
+face_curve('MouthLine', lambda t: t * 0.020, lambda t: MZ + 0.0062 * t ** 2 - 0.0012 + 0.0025 * abs(t) ** 6, 24, 0.0008,
+           lambda t: (0.0007, 0.0010 * (0.4 + 0.6 * math.sin(math.pi * t))), M['mouth'])
+face_curve('LipLower', lambda t: t * 0.0135, lambda t: MZ - 0.0050 + 0.0022 * t ** 2, 20, lambda t: 0.0012 + 0.0018 * (1 - t * t),
+           lambda t: (0.0030 * math.sin(math.pi * t) ** 0.7 + 0.0003, 0.0040 * math.sin(math.pi * t) ** 0.6 + 0.0004), M['lip'])
+face_curve('LipUpper', lambda t: t * 0.0155, lambda t: MZ + 0.0022 + 0.0042 * t ** 2 - 0.0010 * math.exp(-t * t / 0.02), 20, 0.0010,
+           lambda t: (0.0013 * math.sin(math.pi * t) ** 0.7 + 0.0002, 0.0022 * math.sin(math.pi * t) ** 0.6 + 0.0003), M['lip'])
+for sg in (1, -1):  # smile dimples at the corners
+    p, n = on_face(sg * 0.0215, MZ + 0.0058, 0.0005)
+    K.subsurf(K.ellipsoid(f'Dimple{sg}', p, (0.0016, 0.0016, 0.0016), mat=M['mouth'], nu=10, nv=6), 1)
 
 # ================================================================== HAIR
 BUN = P['bun_c']
