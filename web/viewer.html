@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Little Lives — Character Viewer</title>
+<style>html,body{margin:0;height:100%;background:#6e6474;overflow:hidden}canvas{display:block;width:100%;height:100%}</style>
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+// Character viewer for GLB characters (Stage 1). URL params:
+//   model=<path>  view=full|face|three4|side|back|turn  yaw=<deg>  w,h via window size
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { tuneCharacterMaterials, studioLights } from './lib/look.js';
+
+const q = new URLSearchParams(location.search);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = +(q.get('exp') || 0.95);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+// soft vertical gradient backdrop like the design board
+{ const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#5f566a'); gr.addColorStop(0.55, '#7b7183'); gr.addColorStop(1, '#8a7f8d'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t; }
+studioLights(scene);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(3, 64), new THREE.ShadowMaterial({ opacity: 0.32 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+const camera = new THREE.PerspectiveCamera(18, innerWidth / innerHeight, 0.05, 50);
+const controls = new OrbitControls(camera, renderer.domElement);
+new GLTFLoader().load(q.get('model') || '../assets/characters/naomi.glb', (g) => {
+  const root = g.scene; tuneCharacterMaterials(root, renderer);
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  root.rotation.y = THREE.MathUtils.degToRad(+(q.get('yaw') || 0));
+  scene.add(root);
+  const box = new THREE.Box3().setFromObject(root); const size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+  const view = q.get('view') || 'full';
+  const H = size.y, fov = THREE.MathUtils.degToRad(camera.fov);
+  let target, dist, elev = 0.04;
+  if (view === 'face') { target = new THREE.Vector3(ctr.x, box.max.y - H * 0.17, ctr.z); dist = (H * 0.40) / 2 / Math.tan(fov / 2); }
+  else { target = ctr.clone(); dist = (H * 1.06) / 2 / Math.tan(fov / 2); }
+  const az = { side: 90, back: 180, three4: 35 }[view] || +(q.get('az') || 0);
+  const a = THREE.MathUtils.degToRad(az);
+  camera.position.set(target.x + Math.sin(a) * dist, target.y + dist * elev, target.z + Math.cos(a) * dist);
+  controls.target.copy(target); controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(() => { renderer.render(scene, camera); window.READY = true; });
+}, undefined, (e) => { document.title = 'ERR ' + e; window.READY = 'error'; });
+controls.addEventListener('change', () => renderer.render(scene, camera));
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.render(scene, camera); });
+</script></body></html>
