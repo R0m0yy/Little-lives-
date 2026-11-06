@@ -2,9 +2,10 @@
 
 Decision: move Little Lives to Three.js with authored GLB characters, following the external audit's Strategy B (`little-lives-audit_2.zip`). The custom renderer and procedural Naomi become reference/blockout only.
 
-**Blocker:** this workspace cannot install packages or reach a CDN, so Three.js can't be installed or tested here. Owner action: enable package installs in Claude network settings, then continue in a new chat.
+~~**Blocker:** this workspace cannot install packages~~ — resolved 2026-11-06: the cloud environment installs from npm and PyPI (see `docs/STAGE0_REPORT.md`).
 
 ## Stage 0 — before any port (can run without Three.js)
+**Status 2026-11-06:** items 1–2 done in `core/` with 64 passing tests (`npm test`); item 3 partial (anchors + reservations, no contact events). See `docs/STAGE0_REPORT.md`.
 1. Extract a renderer-independent, fixed-timestep sim core (`core/`) runnable in Node: clock, needs, personality, utility AI, object states.
 2. Fix confirmed audit defects in that core, each with a regression test:
    - LL-008 `goto` start callbacks never run → LL-009 Elias phone call credits Darius

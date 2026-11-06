@@ -1,0 +1,11 @@
+{
+  "name": "little-lives",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Little Lives — autonomous family simulator. core/ is the renderer-independent sim (Stage 0).",
+  "scripts": {
+    "test": "node --test \"test/core/*.test.js\""
+  },
+  "engines": { "node": ">=20" }
+}

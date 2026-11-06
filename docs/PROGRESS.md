@@ -17,7 +17,11 @@ _Last updated: 2026-11-05 (session 2). Everything listed as done was verified by
 | 9 Cinematic polish | Partial — cinematic camera sequence exists (Section 27 flow) | `main.js` startCinematic |
 | 10 Full testing | Partial — automated soak + pose harness exists | `tools/qa_run.py`, `tools/pose_check.py` |
 
-## Session 2 changes (this session)
+## 2026-11-06 — Stage 0 (Three.js migration)
+- New renderer-independent fixed-tick sim core in `core/`, 64 regression tests (`npm test`, all passing). Fixes LL-007/008/009/010/011/012/013/030/033/038 in the core; LL-030 also fixed in the live UI (`src/main.js`). Legacy `src/sim.js` is unchanged and not yet replaced. Details: `docs/STAGE0_REPORT.md`.
+- Package installs (npm, PyPI) verified working in the cloud environment.
+
+## Session 2 changes
 - **Naomi v3 character pass** against the design board (side-by-side tool `tools/compare.py`):
   - Head: wide "apple" face fullest at the cheeks, soft broad chin (was pointed egg); head drops into collar; head radius −7% for ~3-head proportion.
   - Eyes: 15% larger, set lower (eye line 0.2 r below equator), sunk into sockets, dark glossy iris filling the eye, large soft key catch-light + small fill; thick upper lash line heavier at the outer corner + 3 lash flicks; lids more open at rest.

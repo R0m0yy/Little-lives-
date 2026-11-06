@@ -2992,6 +2992,9 @@ const LL = (window.LL = window.LL || {});
 (function () {
   const { M, V, Q, M4 } = LL;
   const $ = (s) => document.querySelector(s);
+  // LL-030: save-derived strings (memories, relationship names/labels, action labels) must never be parsed as HTML
+  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pct = (v) => (Number.isFinite(+v) ? Math.max(0, Math.min(100, +v)) : 0);
   const params = new URLSearchParams(location.hash.slice(1).replace(/,/g, '&'));
   const TEST = params.has('test');
   const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 600;
@@ -3162,10 +3165,10 @@ const LL = (window.LL = window.LL || {});
     $('#activity').textContent = (act ? act.icon + ' ' : '') + a.activity;
     $('#mood').textContent = a.moodLabel(); $('#moodDot').style.background = `hsl(${a.mood() * 1.2},55%,58%)`;
     const body = $('#cardBody');
-    if (uiTab === 'needs') body.innerHTML = NEEDS.map(([k, l, c]) => `<div class="need"><span>${l}</span><div class="bar"><i style="width:${a.needs[k].toFixed(0)}%;background:${c}"></i></div></div>`).join('') +
-      `<div class="sub">Next on her mind: ${(a.lastScores || []).slice(0, 3).map((s) => LL.Actions[s[1]].label.toLowerCase()).join(' · ') || '—'}</div>`;
-    else if (uiTab === 'rel') body.innerHTML = Object.entries(a.rel).map(([k, r]) => `<div class="rel"><b>${k[0].toUpperCase() + k.slice(1)}</b> <small>${r.label}</small><div class="bar"><i style="width:${r.affection}%;background:#df8fa6"></i></div><small>Trust ${r.trust} · Friendship ${r.friendship} · Conflict ${r.conflict}</small></div>`).join('') + '<div class="sub">Darius, Elias and Laila move in at Milestone 5.</div>';
-    else if (uiTab === 'mem') body.innerHTML = a.memories.slice(0, 7).map((m) => `<div class="mem"><small>${m.t}</small>${m.text}</div>`).join('') || '<div class="sub">No memories yet today.</div>';
+    if (uiTab === 'needs') body.innerHTML = NEEDS.map(([k, l, c]) => `<div class="need"><span>${l}</span><div class="bar"><i style="width:${pct(a.needs[k]).toFixed(0)}%;background:${c}"></i></div></div>`).join('') +
+      `<div class="sub">Next on her mind: ${(a.lastScores || []).slice(0, 3).map((s) => (LL.Actions[s[1]] ? esc(LL.Actions[s[1]].label.toLowerCase()) : '')).join(' · ') || '—'}</div>`;
+    else if (uiTab === 'rel') body.innerHTML = Object.entries(a.rel).map(([k, r]) => `<div class="rel"><b>${esc(k[0].toUpperCase() + k.slice(1))}</b> <small>${esc(r.label)}</small><div class="bar"><i style="width:${pct(r.affection)}%;background:#df8fa6"></i></div><small>Trust ${esc(r.trust)} · Friendship ${esc(r.friendship)} · Conflict ${esc(r.conflict)}</small></div>`).join('') + '<div class="sub">Darius, Elias and Laila move in at Milestone 5.</div>';
+    else if (uiTab === 'mem') body.innerHTML = a.memories.slice(0, 7).map((m) => `<div class="mem"><small>${esc(m.t)}</small>${esc(m.text)}</div>`).join('') || '<div class="sub">No memories yet today.</div>';
     else body.innerHTML = Object.entries(a.personality).map(([k, v]) => `<div class="need"><span>${k[0].toUpperCase() + k.slice(1)}</span><div class="bar"><i style="width:${Math.min(100, v * 80)}%;background:#a9b48a"></i></div></div>`).join('') + `<div class="sub">Wakes around ${Math.floor(a.prefs.wake)}:${String(Math.round((a.prefs.wake % 1) * 60)).padStart(2, '0')} · loves tea and cooking</div>`;
     if ($('#stats').classList.contains('open')) $('#stats').textContent = `${fps.toFixed(0)} fps · ${R.stats.draws} draws · ${(R.stats.tris / 1000).toFixed(0)}k tris · ${R.W}×${R.H}`;
   }

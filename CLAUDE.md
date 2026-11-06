@@ -10,6 +10,7 @@ Premium 2.5D autonomous family simulator in a Victorian tabletop dollhouse (brow
 Strategy B: move to Three.js + commissioned/authored GLB characters. Current custom WebGL2 renderer and procedural Naomi (src/character.js) are reference/blockout only. Stage 0 (no Three.js needed): extract a renderer-independent fixed-timestep sim core, fix audit defects LL-007/008/009/010/011/012/013/030/033/038 with regression tests. Stage 1: Three.js full-house visual proof.
 
 ## Current build
+`core/` = renderer-independent fixed-tick sim (Stage 0, ES modules, Node-testable); `npm test` runs `test/core/*.test.js` (node:test, no deps). Not yet wired into the legacy build. See docs/STAGE0_REPORT.md. npm/PyPI installs work in the cloud env; Python Playwright is not preinstalled (Node Playwright is).
 src/*.js concatenated by `python3 tools/build.py` -> dist/index.html. QA: tools/compare.py (character vs reference), tools/pose_check.py, tools/qa_run.py (headless Chrome via Playwright, software GL). refs/design_board.png is the single supplied reference board (lower-right house = architectural authority; separate A/B originals were never supplied).
 
 ## Known open items
