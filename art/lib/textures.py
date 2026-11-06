@@ -155,3 +155,111 @@ def iris(path, S=512, iris_r=0.64, pupil_r=0.34, dark=(18, 12, 12), mid=(70, 40,
         X, Y, R = (cx + 1) / 2 * S, (cy + 1) / 2 * S, rr / 2 * S
         d.ellipse((X - R, Y - R * 0.9, X + R, Y + R * 0.9), fill=(255, 255, 255))
     im.filter(ImageFilter.GaussianBlur(0.8)).save(path)
+
+
+# ------------------------------------------------------------------ house textures
+def wallpaper(path, base=(232, 200, 140), motif=(212, 172, 108), W=512, H=512, kind='damask', seed=1):
+    rnd = random.Random(seed)
+    im = Image.new('RGB', (W, H), base)
+    d = ImageDraw.Draw(im)
+    if kind == 'stripe':
+        for x in range(0, W, 64):
+            d.rectangle((x, 0, x + 22, H), fill=motif)
+            d.rectangle((x + 30, 0, x + 34, H), fill=motif)
+    n = 4
+    for j in range(n):
+        for i in range(n):
+            cx, cy = (i + 0.5 * (j % 2) + 0.25) * W / n, (j + 0.5) * H / n
+            if kind in ('damask', 'stripe'):
+                for k in range(4):
+                    a = k / 4 * math.tau + math.pi / 4
+                    _blob(d, cx + math.cos(a) * 14, cy + math.sin(a) * 20, 9, 5, a + 0.6, motif, 12)
+                _blob(d, cx, cy, 7, 12, 0, motif, 12)
+            elif kind == 'floral':
+                for k in range(5):
+                    a = k / 5 * math.tau
+                    _blob(d, cx + math.cos(a) * 7, cy + math.sin(a) * 7, 6, 4, a, motif, 10)
+                d.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=(220, 180, 110))
+    for _ in range(4000):
+        x, y = rnd.randrange(W), rnd.randrange(H)
+        v = rnd.randint(-8, 8)
+        d.point((x, y), fill=tuple(max(0, min(255, c + v)) for c in im.getpixel((x, y))))
+    im.filter(ImageFilter.GaussianBlur(1.0)).save(path)
+
+
+def planks(path, W=512, H=512, base=(118, 68, 36), seed=2):
+    rnd = random.Random(seed)
+    im = Image.new('RGB', (W, H), base)
+    d = ImageDraw.Draw(im)
+    rows = 8
+    for r in range(rows):
+        y0 = r * H / rows
+        x = -rnd.random() * W
+        while x < W:
+            ln = rnd.uniform(0.35, 0.8) * W
+            v = rnd.randint(-22, 18)
+            c = tuple(max(0, min(255, base[i] + v)) for i in range(3))
+            d.rectangle((x, y0, x + ln, y0 + H / rows), fill=c)
+            for g in range(6):
+                gy = y0 + rnd.random() * H / rows
+                d.line((x, gy, x + ln, gy + rnd.uniform(-2, 2)), fill=tuple(max(0, ch - 14) for ch in c), width=1)
+            d.line((x, y0, x, y0 + H / rows), fill=(70, 40, 22), width=2)
+            x += ln
+        d.line((0, y0, W, y0), fill=(70, 40, 22), width=2)
+    im.filter(ImageFilter.GaussianBlur(0.6)).save(path)
+
+
+def slate(path, W=512, H=512, base=(70, 88, 116), seed=4):
+    """Fish-scale / rectangular slate shingles, blue-grey."""
+    rnd = random.Random(seed)
+    im = Image.new('RGB', (W, H), (52, 60, 72))
+    d = ImageDraw.Draw(im)
+    rows, cols = 16, 12
+    for r in range(rows):
+        y = r * H / rows
+        off = (r % 2) * W / cols / 2
+        for c in range(-1, cols + 1):
+            x = c * W / cols + off
+            v = rnd.randint(-14, 14)
+            colr = tuple(max(0, min(255, base[i] + v + (8 if i == 2 else 0))) for i in range(3))
+            w, h = W / cols - 3, H / rows * 1.35
+            if r % 4 < 2:
+                d.rounded_rectangle((x + 1, y, x + w, y + h), radius=3, fill=colr)
+            else:
+                d.pieslice((x + 1, y - h * 0.3, x + w, y + h), 0, 180, fill=colr)
+                d.rectangle((x + 1, y, x + w, y + h * 0.35), fill=colr)
+    im.filter(ImageFilter.GaussianBlur(0.7)).save(path)
+
+
+def siding(path, W=512, H=512, base=(226, 214, 192), seed=6, scallop=False):
+    rnd = random.Random(seed)
+    im = Image.new('RGB', (W, H), base)
+    d = ImageDraw.Draw(im)
+    rows = 16
+    for r in range(rows):
+        y = r * H / rows
+        v = rnd.randint(-6, 6)
+        c = tuple(max(0, min(255, base[i] + v)) for i in range(3))
+        if scallop:
+            cols = 16
+            for k in range(cols + 1):
+                x = k * W / cols + (r % 2) * W / cols / 2
+                d.pieslice((x - W / cols / 2, y - H / rows, x + W / cols / 2, y + H / rows), 0, 180, fill=c, outline=tuple(ch - 30 for ch in base))
+        else:
+            d.rectangle((0, y, W, y + H / rows), fill=c)
+            d.line((0, y + H / rows - 1, W, y + H / rows - 1), fill=tuple(ch - 40 for ch in base), width=2)
+    im.filter(ImageFilter.GaussianBlur(0.6)).save(path)
+
+
+def flowerbed(path, W=512, H=128, seed=8):
+    rnd = random.Random(seed)
+    im = Image.new('RGB', (W, H), (52, 78, 44))
+    d = ImageDraw.Draw(im)
+    for _ in range(600):
+        x, y = rnd.random() * W, rnd.random() * H
+        _blob(d, x, y, rnd.uniform(4, 9), rnd.uniform(2, 4), rnd.random() * math.tau, rnd.choice([(70, 108, 58), (88, 128, 66), (46, 72, 40)]), 10)
+    for _ in range(260):
+        x, y = rnd.random() * W, rnd.random() * H * 0.8
+        c = rnd.choice([(236, 120, 170), (250, 240, 244), (220, 80, 120), (250, 200, 220), (200, 120, 220)])
+        d.ellipse((x - 3, y - 3, x + 3, y + 3), fill=c)
+    im.filter(ImageFilter.GaussianBlur(0.6)).save(path)

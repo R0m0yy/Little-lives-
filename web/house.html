@@ -1,0 +1,78 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Little Lives — House</title>
+<style>html,body{margin:0;height:100%;background:#1a1410;overflow:hidden}canvas{display:block;width:100%;height:100%}</style>
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+// Stage 1 house proof: loads assets/house/house.glb, adds warm room lights at Light_* empties, tabletop camera.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const q = new URLSearchParams(location.search);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = +(q.get('exp') || 1.0);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.12;
+// dusk room backdrop: dark warm-green gradient with a soft lamp glow (as on the board)
+{ const c = document.createElement('canvas'); c.width = 512; c.height = 384; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 384); gr.addColorStop(0, '#2a2e28'); gr.addColorStop(0.6, '#3a3226'); gr.addColorStop(1, '#4a3424'); g.fillStyle = gr; g.fillRect(0, 0, 512, 384);
+  for (const [x, y, r, col] of [[470, 150, 60, 'rgba(255,200,120,0.55)'], [40, 120, 90, 'rgba(90,110,90,0.35)'], [420, 60, 80, 'rgba(110,130,90,0.3)']]) {
+    const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(0, 0, 512, 384); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t; }
+scene.add(new THREE.HemisphereLight(0x8090b0, 0x3a2a1a, 0.35));
+const moon = new THREE.DirectionalLight(0xb8c4ff, 0.5); moon.position.set(-6, 10, 8); scene.add(moon);
+const front = new THREE.DirectionalLight(0xffd8a8, +(q.get('front') || 0.9)); front.position.set(3, 4, 12); front.castShadow = true;
+front.shadow.mapSize.set(2048, 2048); Object.assign(front.shadow.camera, { left: -7, right: 7, top: 9, bottom: -1, near: 1, far: 30 }); front.shadow.bias = -0.0005; front.shadow.normalBias = 0.02;
+scene.add(front);
+
+const camera = new THREE.PerspectiveCamera(+(q.get('fov') || 26), innerWidth / innerHeight, 0.1, 200);
+const controls = new OrbitControls(camera, renderer.domElement);
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), +(q.get('bloom') || 0.3), 0.5, 0.88));
+composer.addPass(new OutputPass());
+const draw = () => composer.render();
+
+new GLTFLoader().load('../assets/house/house.glb', (g) => {
+  const root = g.scene; scene.add(root);
+  const lights = [];
+  root.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true; o.receiveShadow = true;
+      const m = o.material;
+      if (m.name.startsWith('lamp') || m.name === 'fire' || m.name.startsWith('window')) { o.castShadow = false; }
+    }
+    if (o.name.startsWith('Light_')) lights.push(o);
+  });
+  const P = +(q.get('room') || 3.0);
+  for (const e of lights) {
+    const fire = e.name === 'Light_fire';
+    const L = new THREE.PointLight(fire ? 0xff7a2a : 0xff9c42, fire ? P * 0.7 : P, fire ? 2.5 : 4.0, 1.5);
+    e.add(L);
+  }
+  // fit the tabletop camera: frontal, slight elevation, house fills the frame like the board crop
+  const box = new THREE.Box3(); root.traverse((o) => { if (o.isMesh && !o.name.startsWith('tabletop')) box.expandByObject(o); });
+  const ctr = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+  const fov = THREE.MathUtils.degToRad(camera.fov), asp = camera.aspect;
+  const fitH = size.y * 1.04 / 2 / Math.tan(fov / 2), fitW = size.x * 1.04 / 2 / Math.tan(fov / 2) / asp;
+  const dist = Math.max(fitH, fitW) * +(q.get('zoom') || 1);
+  const az = THREE.MathUtils.degToRad(+(q.get('az') || 0)), el = +(q.get('el') || 0.06);
+  const tgt = new THREE.Vector3(ctr.x, ctr.y, ctr.z);
+  camera.position.set(tgt.x + Math.sin(az) * dist, tgt.y + dist * el, tgt.z + Math.cos(az) * dist);
+  controls.target.copy(tgt); controls.update();
+  draw(); requestAnimationFrame(() => { draw(); window.READY = true; });
+}, undefined, (e) => { document.title = 'ERR ' + e; window.READY = 'error'; });
+controls.addEventListener('change', draw);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); draw(); });
+</script></body></html>
