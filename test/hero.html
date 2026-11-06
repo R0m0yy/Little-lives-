@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Character QA renders</title>
+<style>html,body{margin:0;background:#2a2230}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script src="../src/math.js"></script><script src="../src/geo.js"></script><script src="../src/gl.js"></script>
+<script src="../src/textures.js"></script><script src="../src/character.js"></script>
+<script>
+// usage: hero.html#face | #body | #expr   (optional ,who=naomi)
+const { M4, Q, V } = LL;
+const args = Object.fromEntries(location.hash.slice(1).split(',').map((s) => s.split('=')).map(([k, v]) => [k, v ?? true]));
+const mode = Object.keys(args)[0] || 'face';
+const who = args.who || 'naomi';
+const spec = LL.CharacterSpecs[who];
+const W = mode === 'face' ? 840 : 1600, H = mode === 'face' ? 720 : 900;
+const cv = document.getElementById('c');
+const R = new LL.Renderer(cv, { preserve: true }); R.resize(W, H);
+const T = LL.Tex;
+const texs = { iris: R.texture(T.iris(spec.eyeColor), { clamp: true }), hair: R.texture(T.hair()), floral: R.texture(T.floral()), lace: R.texture(T.lace()), paintCloth: R.texture(T.paint([250, 247, 240])) };
+const N = mode === 'face' ? 1 : mode === 'body' ? 4 : 6;
+const chars = []; for (let i = 0; i < N; i++) chars.push(new LL.Character(R, spec, texs));
+const mb = new LL.MeshBuilder(); mb.set({ color: LL.lin('#6b5a72') }); mb.pushT(0, -0.01, 0); mb.box(30, 0.02, 12); mb.pop();
+const items = [{ mesh: R.upload(mb.build()), model: M4.ident(), visible: true, interior: true }];
+const EX = [{}, { smile: 1.5, brow: 0.025, lid: -0.72 }, { open: 1, brow: 0.07, lid: -1.0 }, { smile: -1.0, browRot: -0.22, lid: -0.6 }, { smile: -0.6, browRot: 0.2, brow: -0.02, lid: -0.66 }, { lid: -0.18, smile: 0.4 }];
+const NAMES = ['Neutral', 'Happy', 'Surprised', 'Sad', 'Angry', 'Tired'];
+function pose(i) {
+  const p = { q: {}, t: {}, s: {} };
+  const lidOpen = spec.lidOpen ?? -0.86;
+  p.q.lid_L = p.q.lid_R = Q.euler(lidOpen, 0, 0);
+  p.s.mouthO = [0, 0, 0]; p.s.mouth = [1, 0.8, 1];
+  p.q.upperarm_L = Q.euler(0, 0, 0.12); p.q.upperarm_R = Q.euler(0, 0, -0.12);
+  if (mode === 'expr') {
+    const E = EX[i];
+    if (E.smile != null) p.s.mouth = [1 + Math.abs(E.smile) * 0.15, 0.8 * E.smile, 1];
+    if (E.open) { p.s.mouthO = [0.8, 1.2, 1]; p.s.mouth = [0.6, 0.2, 1]; }
+    if (E.brow) p.t.brow_L = p.t.brow_R = [0, E.brow, 0];
+    if (E.browRot) { p.q.brow_L = Q.euler(0, 0, E.browRot); p.q.brow_R = Q.euler(0, 0, -E.browRot); }
+    if (E.lid != null) p.q.lid_L = p.q.lid_R = Q.euler(E.lid, 0, 0);
+  }
+  
+  return p;
+}
+chars.forEach((c, i) => {
+  if (mode === 'body') { c.pos = [(i - 1.5) * 1.9, 0, 0]; c.heading = [0, -Math.PI / 4, -Math.PI / 2, Math.PI][i]; }
+  else if (mode === 'expr') { c.pos = [(i - 2.5) * 1.35, 0, 0]; c.heading = 0; }
+  else c.heading = 0.32;
+  c.apply(pose(i)); items.push(...c.items);
+});
+const hc = chars[0].S.hc;
+let eye, at, fov;
+if (mode === 'face') { at = [0, hc[1] - 0.04, 0]; eye = [0.0, hc[1] + 0.05, 4.2]; fov = 0.32; }
+else if (mode === 'body') { eye = [0, 1.7, 9.5]; at = [0, 1.45, 0]; fov = 0.5; }
+else { eye = [0, hc[1] + 0.05, 11.0]; at = [0, hc[1] - 0.15, 0]; fov = 0.4; }
+const cam = { view: M4.lookAt(eye, at, [0, 1, 0]), proj: M4.persp(fov, W / H, 0.5, 60), eye, near: 0.5, far: 60 };
+const env = { keyDir: [-0.45, 0.65, 0.8], keyCol: [1.15, 1.05, 0.95], sky: [0.42, 0.38, 0.48], ground: [0.22, 0.18, 0.2], clear: [0.3, 0.27, 0.33],
+  lights: [{ p: [3, 3.5, 3], r: 12, c: [1, 0.78, 0.55], i: 0.75 }, { p: [-4, 3, -2], r: 12, c: [0.65, 0.62, 1], i: 0.6 }], room: [-100, 100, -100, 100] };
+R.render({ items, cam, env, shadowCenter: [0, 1.2, 0], shadowRadius: 7, post: { focus: V.dist(eye, at), aperture: 0.0, maxR: 0 } });
+window.DONE = true; window.VCOUNT = chars[0].vcount; window.NAMES = NAMES;
+</script></body></html>

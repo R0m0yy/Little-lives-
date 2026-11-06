@@ -1,0 +1,13 @@
+asset,category,classification,source,file,license,status
+Naomi character mesh,character,custom-built (procedural),original code,src/character.js,project-owned,v3 in review
+Shared 30-bone skeleton + IK,character,reusable technical asset,original code,src/character.js,project-owned,done
+HairKit (cap/ribbon/sweep/coil/tendril),character,reusable technical asset,original code,src/character.js,project-owned,done
+Pinafore outfit,character,custom-built (procedural),original code,src/character.js,project-owned,needs apron layer
+Procedural animation clips,animation,custom-built (procedural),original code,src/anim.js,project-owned,partial
+Kitchen room + house shell,environment,custom-built (procedural),original code,src/kitchen.js,project-owned,done
+Kitchen furniture & appliances,environment,custom-built (procedural),original code,src/kitchen.js,project-owned,done
+Textures (wallpaper planks tiles iris hair floral lace rug slate siding),texture,procedural,original code,src/textures.js,project-owned,done
+Living-room backdrop (blurred),texture,procedural,original code,src/textures.js,project-owned,done
+Sound effects,audio,procedural (WebAudio synthesis),original code,src/audio.js,project-owned,partial
+WebGL2 renderer,engine,reusable technical asset,original code,src/gl.js,project-owned,done
+Design board reference,reference,reference only (not shipped),user-supplied,refs/design_board.png,user-supplied,reference

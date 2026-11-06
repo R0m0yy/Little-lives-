@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Naomi turnaround</title>
+<style>html,body{margin:0;background:#2a2230}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script src="../src/math.js"></script><script src="../src/geo.js"></script><script src="../src/gl.js"></script>
+<script src="../src/textures.js"></script><script src="../src/character.js"></script>
+<script>
+const { M4, Q, V } = LL;
+const W = 1600, H = 900; const cv = document.getElementById('c');
+const R = new LL.Renderer(cv, { preserve: true }); R.resize(W, H);
+const T = LL.Tex;
+const texs = { iris: R.texture(T.iris([74,44,26]), {clamp:true}), hair: R.texture(T.hair([40,24,18])), floral: R.texture(T.floral()), lace: R.texture(T.lace()), paintCloth: R.texture(T.paint([250,247,240])) };
+const mode = location.hash.slice(1) || 'turn';
+const chars = [];
+const N = mode === 'turn' ? 4 : 6;
+for (let i = 0; i < N; i++) { const c = new LL.Character(R, LL.CharacterSpecs.naomi, texs); chars.push(c); }
+// floor
+const mb = new LL.MeshBuilder(); mb.set({ color: LL.lin('#6b5a72') }); mb.pushT(0, -0.01, 0); mb.box(30, 0.02, 12); mb.pop();
+const floor = { mesh: R.upload(mb.build()), model: M4.ident(), visible: true, interior: true };
+function pose(i) {
+  const p = { q: {}, t: {}, s: {} };
+  p.q.lid_L = p.q.lid_R = Q.euler(-0.7, 0, 0);
+  p.s.mouthO = [0, 0, 0];
+  p.s.mouth = [1, 0.8, 1];
+  if (mode === 'expr') {
+    const E = [
+      {}, // neutral
+      { smile: 1.5, brow: 0.03 }, // happy
+      { open: 1, brow: 0.07, lid: -0.75 }, // surprised
+      { smile: -1.0, browRot: -0.25, lid: -0.45 }, // sad
+      { smile: -0.6, browRot: 0.3, brow: -0.02 }, // angry
+      { lid: -0.05 }, // tired
+    ][i];
+    if (E.smile != null) p.s.mouth = [1 + Math.abs(E.smile) * 0.15, 0.8 * E.smile, 1];
+    if (E.open) { p.s.mouthO = [0.8, 1.2, 1]; p.s.mouth = [0.6, 0.2, 1]; }
+    if (E.brow) p.t.brow_L = p.t.brow_R = [0, E.brow, 0];
+    if (E.browRot) { p.q.brow_L = Q.euler(0, 0, E.browRot); p.q.brow_R = Q.euler(0, 0, -E.browRot); }
+    if (E.lid != null) p.q.lid_L = p.q.lid_R = Q.euler(E.lid, 0, 0);
+  }
+  return p;
+}
+const items = [floor];
+chars.forEach((c, i) => {
+  if (mode === 'turn') { c.pos = [(i - 1.5) * 1.9, 0, 0]; c.heading = [0, -Math.PI / 4, -Math.PI / 2, Math.PI][i]; }
+  else { c.pos = [(i - 2.5) * 1.25, 0, 0]; c.heading = 0; }
+  c.apply(pose(i)); items.push(...c.items);
+});
+const eye = mode === 'turn' ? [0, 1.7, 9.5] : [0, 2.35, 9.0];
+const at = mode === 'turn' ? [0, 1.45, 0] : [0, 2.3, 0];
+const cam = { view: M4.lookAt(eye, at, [0, 1, 0]), proj: M4.persp(mode === 'turn' ? 0.5 : 0.32, W / H, 0.5, 60), eye, near: 0.5, far: 60 };
+const env = { keyDir: [-0.4, 0.7, 0.8], keyCol: [1.15, 1.05, 0.95], sky: [0.42, 0.38, 0.48], ground: [0.22, 0.18, 0.2], clear: [0.16, 0.13, 0.18],
+  lights: [{ p: [3, 3.5, 3], r: 12, c: [1, 0.75, 0.5], i: 0.7 }, { p: [-4, 3, -2], r: 12, c: [0.6, 0.6, 1], i: 0.6 }], room: [-100, 100, -100, 100] };
+R.render({ items, cam, env, shadowCenter: [0, 1.2, 0], shadowRadius: 7, post: { focus: V.dist(eye, at), aperture: 0.0, maxR: 0 } });
+window.DONE = true; window.VCOUNT = chars[0].vcount;
+</script></body></html>

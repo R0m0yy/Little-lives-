@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Little Lives — Kitchen Vertical Slice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#f6eedf;--ink:#3b2a22;--soft:#7a6656;--plum:#5b3b52;--line:rgba(91,59,82,.18);--glass:rgba(250,244,233,.86)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#120d0b;overflow:hidden;font-family:Nunito,system-ui,sans-serif;color:var(--ink)}
+#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.panel{background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.55);box-shadow:0 6px 24px rgba(30,15,10,.28);border-radius:16px}
+#top{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:8px;align-items:center;justify-content:space-between;pointer-events:none}
+#top>*{pointer-events:auto}
+#brand{padding:6px 14px;font-family:'Cormorant Garamond',Georgia,serif;font-weight:700;font-size:22px;color:var(--plum);letter-spacing:.3px}
+#brand small{display:block;font-family:Nunito,sans-serif;font-size:10px;color:var(--soft);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-top:-3px}
+#time{padding:7px 14px;text-align:center;min-width:150px}
+#clock{font-weight:700;font-size:15px}#period{font-size:11px;color:var(--soft)}
+#speed{display:flex;padding:4px;gap:2px}
+button{font:inherit;border:0;background:transparent;color:var(--ink);cursor:pointer;border-radius:10px;padding:7px 10px;font-weight:700;font-size:13px}
+button.on{background:var(--plum);color:#fff}
+#card{position:fixed;left:10px;bottom:10px;width:min(330px,calc(100vw - 20px));padding:12px 14px;cursor:pointer}
+#card .hd{display:flex;align-items:center;gap:10px}
+#avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#c98d68 0 38%,#3a2219 39% 60%,#f2e6d3 61%);border:2px solid #fff;flex:none}
+#card .nm{font-family:'Cormorant Garamond',Georgia,serif;font-size:21px;font-weight:700;line-height:1}
+#card .nm small{font-family:Nunito;font-size:11px;color:var(--soft);font-weight:700;margin-left:4px}
+#moodRow{font-size:12px;color:var(--soft);display:flex;align-items:center;gap:5px}#moodDot{width:9px;height:9px;border-radius:50%}
+#activity{margin:9px 0 2px;font-size:14px;font-weight:700}
+#more{display:none}#card.open #more{display:block}
+.tabs{display:flex;gap:2px;margin:8px 0 6px;border-bottom:1px solid var(--line)}.tabs button{font-size:12px;padding:6px 8px;border-radius:8px 8px 0 0}
+.need{display:flex;align-items:center;gap:8px;font-size:12px;margin:5px 0}.need span{width:62px;color:var(--soft);font-weight:700}
+.bar{flex:1;height:8px;border-radius:5px;background:rgba(91,59,82,.12);overflow:hidden}.bar i{display:block;height:100%;border-radius:5px;transition:width .4s}
+.rel{margin:6px 0;font-size:13px}.rel small{color:var(--soft)}.rel .bar{margin:3px 0}
+.mem{font-size:12.5px;margin:5px 0;line-height:1.3}.mem small{display:block;color:var(--soft);font-size:10.5px}
+.sub{font-size:11px;color:var(--soft);margin-top:7px}
+#hint{font-size:11px;color:var(--soft)}#card.open #hint{display:none}
+#cams{position:fixed;right:10px;bottom:10px;display:flex;flex-wrap:wrap;gap:2px;padding:4px;max-width:calc(100vw - 20px);justify-content:flex-end}
+#menuBtn{font-size:18px;padding:4px 10px}
+#menu{position:fixed;right:10px;top:64px;padding:6px;display:none;flex-direction:column;min-width:190px}#menu.open{display:flex}
+#menu button{text-align:left}
+#codeWrap{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.4)}#codeWrap.open{display:flex}
+#codeWrap .panel{padding:14px;width:min(420px,92vw)}#codeBox{width:100%;height:110px;border-radius:10px;border:1px solid var(--line);font:11px monospace;padding:8px}
+#toast{position:fixed;left:50%;top:70px;transform:translate(-50%,-10px);opacity:0;transition:.3s;padding:8px 14px;font-size:13px;font-weight:700;pointer-events:none}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#stats{position:fixed;left:10px;top:64px;padding:5px 9px;font:11px monospace;display:none}#stats.open{display:block}
+#loading,#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity .8s}
+#loading{background:#1a120e;color:#f3e4cc;font-family:'Cormorant Garamond',Georgia,serif;font-size:26px}
+#loading.gone,#start.gone{opacity:0;pointer-events:none}
+#start{background:radial-gradient(ellipse at center,rgba(20,12,9,.15),rgba(20,12,9,.65))}
+#start .panel{padding:22px 26px;text-align:center;max-width:360px;margin:16px}
+#start h1{font-family:'Cormorant Garamond',Georgia,serif;color:var(--plum);margin:0;font-size:40px}
+#start p{color:var(--soft);font-size:13.5px;line-height:1.45}
+#start .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#start button.big{background:var(--plum);color:#fff;padding:10px 18px;font-size:14px}
+#start button.ghost{border:1px solid var(--line)}
+.err{max-width:340px;text-align:center;font-family:Nunito;font-size:15px}
+@media (max-width:600px){#brand{font-size:18px;padding:5px 10px}#brand small{display:none}#time{min-width:0;padding:5px 9px}#clock{font-size:13px}button{padding:6px 8px;font-size:12px}#cams{bottom:auto;top:58px;right:10px}#card{bottom:calc(10px + env(safe-area-inset-bottom))}}
+</style></head>
+<body>
+<canvas id="view"></canvas>
+<div id="top">
+  <div id="brand" class="panel">Little Lives<small>Kitchen vertical slice</small></div>
+  <div id="time" class="panel"><div id="clock">—</div><div id="period"></div></div>
+  <div style="display:flex;gap:6px"><div id="speed" class="panel"><button data-speed="0" title="Pause">❚❚</button><button data-speed="1">1×</button><button data-speed="3">3×</button><button data-speed="10">10×</button></div>
+  <button id="menuBtn" class="panel" title="Menu">☰</button></div>
+</div>
+<div id="menu" class="panel"><button id="mSave">💾 Save household</button><button id="mLoad">📂 Load household</button><button id="mCopy">📋 Copy save code</button><button id="mPaste">⤵️ Paste save code</button><button id="mSound">🔊 Sound on / off</button><button id="mStats">📈 Performance</button></div>
+<div id="cams" class="panel"><button data-cam="house" class="on">House</button><button data-cam="kitchen">Kitchen</button><button data-cam="follow">Follow</button><button data-cam="director">Director</button><button data-cam="cinematic">🎬 Cinematic</button></div>
+<div id="card" class="panel">
+  <div class="hd"><div id="avatar"></div><div><div class="nm">Naomi<small>Mother · 36</small></div><div id="moodRow"><i id="moodDot"></i><span id="mood">—</span></div></div></div>
+  <div id="activity">—</div><div id="hint">Tap for needs, relationships &amp; memories</div>
+  <div id="more"><div class="tabs"><button data-tab="needs" class="on">Needs</button><button data-tab="rel">Family</button><button data-tab="mem">Memories</button><button data-tab="pers">Personality</button></div><div id="cardBody"></div></div>
+</div>
+<div id="codeWrap"><div class="panel"><b>Save code</b><p style="font-size:12px;color:#7a6656;margin:4px 0 8px">Keep this code to restore your household on any device.</p><textarea id="codeBox"></textarea><div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><button id="codeClose">Close</button><button id="codeLoad" class="on">Load code</button></div></div></div>
+<div id="toast" class="panel"></div><div id="stats" class="panel"></div>
+<div id="start"><div class="panel"><h1>Little Lives</h1><p>It's a Monday morning in the dollhouse. Naomi is about to come down to the kitchen. You just watch: she decides for herself what to do.</p>
+<div class="row"><button class="big" id="stNew">▶ Watch with sound</button><button class="big" id="stContinue">Continue saved day</button><button class="ghost" id="stQuiet">Watch quietly</button></div></div></div>
+<div id="loading">Building the dollhouse…</div>
+<script src="../src/math.js"></script>
+<script src="../src/geo.js"></script>
+<script src="../src/gl.js"></script>
+<script src="../src/textures.js"></script>
+<script src="../src/character.js"></script>
+<script src="../src/anim.js"></script>
+<script src="../src/kitchen.js"></script>
+<script src="../src/nav.js"></script>
+<script src="../src/sim.js"></script>
+<script src="../src/world.js"></script>
+<script src="../src/audio.js"></script>
+<script src="../src/main.js"></script>
+</body></html>
