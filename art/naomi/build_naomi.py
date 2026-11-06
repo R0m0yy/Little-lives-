@@ -22,7 +22,7 @@ P = dict(
     head_c=V((0, 0.0, 0.800)), head_rx=0.150, head_ry=0.138, head_rz_top=0.152, head_rz_bot=0.152,
     cheek_amp=0.10, cheek_low=-0.40, chin_narrow=0.10,
     eye_x=0.073, eye_z=0.786, eye_r=0.046, eye_depth=0.62, eye_out=0.10,
-    lid_up=40, lid_low=-40, lid_corner=4,
+    lid_up=40, lid_low=-33, lid_corner=4,
     brow_z=0.842,
     mouth_z=0.703, nose_z=0.742,
     collar_z=0.645, waist_z=0.474, hem_z=0.128, hem_rx=0.235, hem_ry=0.205,
@@ -49,6 +49,8 @@ M = dict(
     eye=K.material('eye', tex=os.path.join(TEX, 'iris.png'), rough=0.08, coat=1.0, coat_rough=0.0, spec=0.6),
     lash=K.material('lash', base='#160d0b', rough=0.5),
     brow=K.material('hair_brow', base='#3a2218', rough=0.7),
+    cornea=K.material('cornea', base='#ffffff', rough=0.0, coat=1.0, coat_rough=0.0, alpha=0.15),
+    crease=K.material('skin_crease', base='#9a4a30', rough=0.6),
     lip=K.material('skin_lip', base='#b85a4e', rough=0.45, spec=0.5),
     hair=K.material('hair', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
     hairCap=K.material('hair_cap', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
@@ -187,6 +189,13 @@ for sg in (1, -1):
         x, y = math.sin(ph) * math.cos(th), math.sin(ph) * math.sin(th)
         return (0.5 + x * 0.5 * (1 if sg > 0 else -1), 0.5 + y * 0.5)
     K.subsurf(K.surface(f'Eye{sg}', eyeball, 48, 32, wrap_u=True, mat=M['eye'], uv=eye_uv), 1)
+    # cornea: clear glossy shell with a slight forward bulge -> cool environment reflection over the iris
+    def cornea(uu, vv, c=c, f=f, r=r, u=u):
+        th, ph = uu * K.TAU, vv * math.pi
+        dl = V((math.sin(ph) * math.cos(th), math.sin(ph) * math.sin(th), math.cos(ph)))
+        bulge = 1.0 + 0.06 * max(0.0, dl.z) ** 3
+        return c + (r * dl.x + u * dl.y + f * dl.z) * er * 1.012 * bulge
+    K.subsurf(K.surface(f'Cornea{sg}', cornea, 40, 24, wrap_u=True, mat=M['cornea']), 1)
 
     # lids: shells around the eyeball, aperture edges at lid_up / lid_low degrees
     am = math.radians(78)
@@ -206,7 +215,7 @@ for sg in (1, -1):
             far = math.radians(62) if top else math.radians(-58)
             b = e + (far - e) * vv
             band = abs(b - e)
-            R = er * (1.010 + 0.035 * K.smoothstep(0.0, math.radians(12), band))
+            R = er * (1.030 + (0.035 if top else 0.014) * K.smoothstep(0.0, math.radians(12 if top else 7), band))
             return c + (f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)) * R
         return g
     for top in (True, False):
@@ -229,13 +238,21 @@ for sg in (1, -1):
         tip_dir = (r * 0.9 + u * 0.6 + f * 0.2).normalized()
         lp = [p0 + (tip_dir * t * ln + u * (t * t) * ln * curl * 0.5) for t in [i / 7 for i in range(8)]]
         K.sweep(f'LashFlick{sg}{k}', lp, lambda t: (0.0022 * (1 - t) + 0.0003, 0.0011 * (1 - t) + 0.0002), nprof=6, mat=M['lash'], up=f)
+    # lid crease: soft darker line above the upper lid
+    pts, nrm = [], []
+    for k in range(30):
+        a = (-0.75 + 1.55 * k / 29) * am
+        b = edge(max(-am, min(am, a)), True) + math.radians(17 + 4 * (1 - abs(a / am)))
+        d = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
+        pts.append(c + d * er * 1.075); nrm.append(d)
+    K.subsurf(K.sweep(f'Crease{sg}', pts, lambda t: (0.0008, 0.0016 * math.sin(math.pi * t) + 0.0002), nprof=6, mat=M['crease'], normals=nrm), 1)
     # lower lid: subtle line
     pts = []
     for k in range(24):
         a = (-0.7 + 1.55 * k / 23) * am
         b = edge(max(-am, min(am, a)), False) - math.radians(3)
         pts.append(c + (f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)) * er * 1.05)
-    K.sweep(f'LashLow{sg}', pts, lambda t: (0.0012 * math.sin(math.pi * t) + 0.0003, 0.0009), nprof=6, mat=M['lash'], up=f)
+    K.sweep(f'LashLow{sg}', pts, lambda t: (0.0007 * math.sin(math.pi * t) + 0.0002, 0.0006), nprof=6, mat=M['lash'], up=f)
 
     # eyebrow: short, thick, arched; follows the head surface
     bp, bn = [], []

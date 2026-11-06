@@ -118,7 +118,7 @@ def weave(path, W=512, H=512, base=(236, 212, 188), seed=5):
     im.filter(ImageFilter.GaussianBlur(0.5)).save(path)
 
 
-def iris(path, S=512, iris_r=0.64, pupil_r=0.34, dark=(18, 12, 12), mid=(70, 40, 26), ring=(14, 8, 8), sclera=(246, 240, 236)):
+def iris(path, S=512, iris_r=0.66, pupil_r=0.36, dark=(7, 6, 8), mid=(34, 40, 58), ring=(14, 8, 8), sclera=(246, 240, 236)):
     """Eye texture in planar front projection: (0.5,0.5) = cornea centre; iris_r etc. as fraction of eyeball radius."""
     im = Image.new('RGB', (S, S), sclera)
     px = im.load()

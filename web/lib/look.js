@@ -21,7 +21,7 @@ export function tuneCharacterMaterials(root, renderer) {
       for (const t of ['map', 'normalMap', 'roughnessMap']) if (m[t]) m[t].anisotropy = aniso;
       const n = m.name || '';
       if (n.startsWith('skin')) { m.sheen = 0.25; m.sheenColor = new THREE.Color(0xff8a5a); m.sheenRoughness = 0.5; m.roughness = Math.max(m.roughness, 0.5); }
-      if (n.startsWith('cornea')) { m.transparent = true; m.opacity = 0.12; m.roughness = 0.0; m.clearcoat = 1; m.clearcoatRoughness = 0.0; m.depthWrite = false; m.envMapIntensity = 2.2; }
+      if (n.startsWith('cornea')) { m.transparent = false; m.opacity = 1; m.transmission = 1; m.thickness = 0; m.ior = 1.376; m.roughness = 0.0; m.clearcoat = 0; m.color.set(0xffffff); m.envMapIntensity = 1.2; m.specularIntensity = 1; }  // clear glass: reflections only
       if (n.startsWith('hair')) { m.envMapIntensity = 0.75; }  // matte silk, not mirror gloss
       if (n.startsWith('fabric')) { m.sheen = 0.35; m.sheenRoughness = 0.65; m.sheenColor = (m.map ? new THREE.Color(0xf0d8c8) : m.color.clone().lerp(new THREE.Color(0xffffff), 0.35)); }
     }
