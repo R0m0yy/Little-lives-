@@ -66,9 +66,9 @@ new GLTFLoader().load('../assets/house/house.glb', (g) => {
   const ctr = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
   const fov = THREE.MathUtils.degToRad(camera.fov), asp = camera.aspect;
   const fitH = size.y * 1.04 / 2 / Math.tan(fov / 2), fitW = size.x * 1.04 / 2 / Math.tan(fov / 2) / asp;
-  const dist = Math.max(fitH, fitW) * +(q.get('zoom') || 1);
+  const dist = Math.max(fitH, fitW) * +(q.get('zoom') || 0.97);
   const az = THREE.MathUtils.degToRad(+(q.get('az') || 0)), el = +(q.get('el') || 0.06);
-  const tgt = new THREE.Vector3(ctr.x, ctr.y, ctr.z);
+  const tgt = new THREE.Vector3(ctr.x, ctr.y - size.y * 0.03, ctr.z);
   camera.position.set(tgt.x + Math.sin(az) * dist, tgt.y + dist * el, tgt.z + Math.cos(az) * dist);
   controls.target.copy(tgt); controls.update();
   draw(); requestAnimationFrame(() => { draw(); window.READY = true; });

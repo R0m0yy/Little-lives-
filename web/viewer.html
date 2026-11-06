@@ -45,6 +45,7 @@ new GLTFLoader().load(q.get('model') || '../assets/characters/naomi.glb', (g) =>
   let target, dist, elev = 0.04;
   if (view === 'face') { target = new THREE.Vector3(ctr.x, box.max.y - H * 0.17, ctr.z); dist = (H * 0.40) / 2 / Math.tan(fov / 2); }
   else { target = ctr.clone(); dist = (H * 1.06) / 2 / Math.tan(fov / 2); }
+  if (q.get('t')) { const t = q.get('t').split(',').map(Number); target = new THREE.Vector3(...t); dist = +(q.get('d') || 0.5); }
   const az = { side: 90, back: 180, three4: 35 }[view] || +(q.get('az') || 0);
   const a = THREE.MathUtils.degToRad(az);
   camera.position.set(target.x + Math.sin(a) * dist, target.y + dist * elev, target.z + Math.cos(a) * dist);

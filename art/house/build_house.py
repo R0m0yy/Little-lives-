@@ -263,6 +263,7 @@ def room(name, x0, x1, z0, z1, wp, d=D, back_window=True):
     return 0.5 * (x0 + x1)
 
 
+BOOKS = [K.material(f'book_{i}', base=c, rough=0.6) for i, c in enumerate(['#7a2a2a', '#2a4a6a', '#3a5a2a', '#a07a3a'])]
 F1, F2, F3, F4 = FLOORS
 CEIL = [F2 - 0.12, F3 - 0.12, F4 - 0.12]
 BAYS = [(POSTS[0], POSTS[1]), (POSTS[1], POSTS[2]), (POSTS[2], POSTS[3])]
@@ -273,6 +274,20 @@ for fi in range(3):
         cx = room(f'R{fi}{bi}', a, b, z0, z1, WPS[fi][bi])
         h = z1 - z0
         w = b - a
+        if bi != 1:
+            chandelier(cx, 1.1, z1)
+        for sx, xw in ((1, a + WALL + 0.02), (-1, b - WALL - 0.02)):   # pictures on the side walls
+            for k, zz in enumerate((z0 + 1.05, z0 + 1.35)):
+                bx('sidePic', (xw + sx * 0.015, 0.9 + 0.5 * k, zz), (0.03, 0.3 - 0.08 * k, 0.24), M['frame'], 0.005)
+        if bi == 0 or (fi == 0 and bi == 1):  # bookshelf with books
+            sx0 = b - 0.55 if bi == 0 else a + 0.3
+            bx('shelf', (sx0, D - 0.22, z0 + 0.75), (0.5, 0.3, 1.5), M['wood'], 0.01)
+            for r in range(4):
+                xx = sx0 - 0.21
+                while xx < sx0 + 0.2:
+                    bw = rnd.uniform(0.03, 0.05)
+                    bx('book', (xx + bw / 2, D - 0.26, z0 + 0.2 + r * 0.34 + 0.12), (bw, 0.2, rnd.uniform(0.18, 0.26)), BOOKS[rnd.randrange(4)], 0)
+                    xx += bw + 0.004
         if fi == 0 and bi == 0:   # living room: fireplace + armchairs
             bx('fireplace', (cx, D - 0.25, z0 + 0.55), (1.0, 0.36, 1.1), M['wood'], 0.02)
             bx('firebox', (cx, D - 0.44, z0 + 0.35), (0.5, 0.02, 0.45), M['iron'], 0)
@@ -331,12 +346,22 @@ armchair(0.5 * (ra + rb) - 0.1, 1.2, F4, 'linen'); plant(rb - 0.35, 1.3, F4, 1.2
 # ------------------------------------------------------------------ facade frame
 FR = -0.06   # front plane of the trim
 for i, px in enumerate(POSTS):
-    bx(f'post{i}', (px, 0.0, (F1 + F4) / 2), (0.16, 0.18, F4 - F1 + 0.1), M['trim'], 0.02)
+    bx(f'post{i}', (px, -0.02, (F1 + F4) / 2), (0.22, 0.22, F4 - F1 + 0.1), M['trim'], 0.025)
+    for fz in FLOORS[:3]:
+        bx('postBase', (px, -0.03, fz + 0.1), (0.3, 0.26, 0.2), M['trim'], 0.02)
     for fz in FLOORS[1:]:
         bx('capital', (px, -0.01, fz - 0.06), (0.24, 0.22, 0.08), M['trim'], 0.02)
 for fz in FLOORS:
     bx('beam', (0, -0.02, fz - 0.06), (POSTS[3] - POSTS[0] + 0.3, 0.16, 0.18), M['trim'], 0.02)
     bx('beamDentil', (0, -0.08, fz - 0.17), (POSTS[3] - POSTS[0] + 0.2, 0.04, 0.05), M['trimDark'], 0.005)
+# spindle frieze under each beam, across every bay
+for fz in CEIL:
+    for a, b in BAYS:
+        x0, x1 = a + 0.14, b - 0.14
+        bx('friezeRail', ((x0 + x1) / 2, -0.04, fz - 0.02), (x1 - x0, 0.05, 0.035), M['trim'], 0.005)
+        n = int((x1 - x0) / 0.09)
+        for k in range(n + 1):
+            cyl('spindle', (x0 + (x1 - x0) * k / n, -0.04, fz + 0.04), 0.014, 0.12, M['trim'], 6)
 # gingerbread corner brackets at each post/ceiling
 for fz in CEIL:
     for i, px in enumerate(POSTS):
@@ -370,7 +395,8 @@ for side in (-1, 1):
     plant((x0 + x1) / 2, wd - 0.35, F1 + 0.3, 0.8)
     empty(f'Light_wing{side}', ((x0 + x1) / 2, 0.7, F2 - 0.4))
     # lower pent roof
-    slab('wingRoof1', [(xo, -0.25, F2 - 0.02), (xi, -0.25, F2 + 0.5), (xi, wd, F2 + 0.5), (xo, wd, F2 - 0.02)][:: (1 if side > 0 else -1)],
+    bx('wingFascia', ((x0 + x1) / 2, -0.42, F2 - 0.06), (x1 - x0 + 0.3, 0.06, 0.1), M['trim'], 0.01)
+    slab('wingRoof1', [(xo + side * 0.15, -0.45, F2 - 0.04), (xi, -0.45, F2 + 0.55), (xi, wd, F2 + 0.55), (xo + side * 0.15, wd, F2 - 0.04)][:: (1 if side > 0 else -1)],
          M['slate'], 0.05, 0.6)
     # upper bay with window
     box('bayFront', x0, x1, -0.02, 0.06, F2 + 0.5, F3, M['siding'], 0, 0.8)
@@ -459,6 +485,8 @@ bx('ridgeCap', (0, D * 0.45, RID + 0.01), (xR - xL - 1.8, 0.12, 0.06), M['trim']
 bx('eaveFascia', (0, -OV + 0.02, EAVE_Z - 0.05), (xR - xL, 0.06, 0.14), M['trim'], 0.01)
 
 # ------------------------------------------------------------------ plinth, steps, garden, tabletop
+FLOWERS = [K.material('flower_pink', base='#e86aa0', rough=0.6), K.material('flower_white', base='#f6eef0', rough=0.6),
+           K.material('flower_magenta', base='#c03070', rough=0.6), K.material('flower_lilac', base='#c890e0', rough=0.6)]
 box('plinth', WING[0] - 0.1, WING[1] + 0.1, -0.35, D + 0.1, -0.02, F1 - 0.08, M['stone'], 0.01, 0.5)
 for k in range(3):
     box('step', X(1205), X(1300), -0.35 - 0.16 * (k + 1), -0.35 - 0.16 * k, -0.02, F1 - 0.08 - (F1 - 0.06) * (k + 1) / 4, M['stone'], 0.01, 0.5)
@@ -467,6 +495,9 @@ for x0, x1 in ((WING[0] - 0.1, X(1200)), (X(1305), WING[1] + 0.1)):
     for k in range(int((x1 - x0) / 0.35)):
         xx = x0 + 0.17 + k * 0.35
         K.ellipsoid('shrub', V((xx, -0.55, 0.16)), (0.2, 0.16, 0.14), mat=M['leaf'], nu=12, nv=8)
+        for f in range(7):
+            fx, fy = xx + rnd.uniform(-0.17, 0.17), -0.55 + rnd.uniform(-0.12, 0.1)
+            K.ellipsoid('flower', V((fx, fy, 0.24 + rnd.uniform(0, 0.06))), (0.035, 0.035, 0.03), mat=FLOWERS[f % 4], nu=8, nv=6)
 box('tabletop', -9, 9, -4.5, 5, -0.12, -0.02, M['table'], 0, 1.6)
 
 for o in bpy.context.scene.objects:
