@@ -50,10 +50,10 @@ M = dict(
     lash=K.material('lash', base='#160d0b', rough=0.5),
     brow=K.material('hair_brow', base='#3a2218', rough=0.7),
     lip=K.material('skin_lip', base='#b85a4e', rough=0.45, spec=0.5),
-    hair=K.material('hair', base='#1d1517', rough=0.36, aniso=0.7, spec=0.6),
-    hairCap=K.material('hair_cap', base='#140e0f', rough=0.45, aniso=0.5),
+    hair=K.material('hair', base='#0f0a0c', rough=0.3, aniso=0.5, spec=0.65),
+    hairCap=K.material('hair_cap', base='#0f0a0c', rough=0.3, aniso=0.5, spec=0.65),
     bun=K.material('hair_bun', base='#2c1a16', rough=0.38, aniso=0.6, spec=0.6),
-    blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.8, sheen=0.6, sheen_tint='#ffffff', sheen_rough=0.6),
+    blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.8, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     lace=K.material('fabric_lace', tex=os.path.join(TEX, 'lace.png'), rough=0.85, sheen=0.5),
     trim=K.material('fabric_trim', tex=os.path.join(TEX, 'trim.png'), rough=0.7, sheen=0.4),
@@ -280,19 +280,42 @@ def hair_keep(d):
 
 
 def hair_thick(d):
-    return 0.035 + 0.16 * max(0, d.z) ** 1.3 + 0.04 * max(0, d.y)
+    t = 0.03 + 0.20 * max(0, d.z) ** 1.2 + 0.05 * max(0, d.y)
+    t += 0.09 * gauss(d, V((0.18, -0.55, 0.80)), 0.42)       # lift above the parting / forehead
+    return t
+
+
+def _flow_basis():
+    a = bun_dir
+    e1 = V((0, -1, 0)) - a * a.dot(V((0, -1, 0)))
+    e1.normalize()
+    return a, e1, a.cross(e1)
+
+
+FLOW = _flow_basis()
+
+
+def clump(d, n=12, depth=0.20):
+    """Broad hair clumps: grooves along great circles converging on the bun."""
+    a, e1, e2 = FLOW
+    psi = math.atan2(d.dot(e2), d.dot(e1))
+    w = 0.5 - 0.5 * math.cos(n * psi + 0.6 * math.sin(3 * psi))
+    conv = K.smoothstep(0.98, 0.6, d.dot(a))  # grooves fade out where they meet the bun
+    return 1 - depth * (w ** 3) * conv
 
 
 def cap_point(d, lift=0.0):
-    k = K.smoothstep(-0.02, 0.14, hair_keep(d))
+    kp = hair_keep(d)
+    k = K.smoothstep(-0.01, 0.06, kp)    # quick rounded lip at the hairline
+    sink = 0.05 * K.smoothstep(0.0, -0.08, kp)  # outside the hairline the cap dives under the skin -> smooth hairline
     p = head_point(d)
-    return C + (p - C) * (1 + (hair_thick(d) * k) + lift)
+    return C + (p - C) * (1 + hair_thick(d) * k * clump(d) - sink + lift)
 
 
-NU, NV = 96, 64
+NU, NV = 160, 110
 cap_rows = [[cap_point(sphere_dir(j / NU, i / (NV - 1))) for j in range(NU)] for i in range(NV)]
 cap = K.build('HairCap', cap_rows, wrap_u=True, mat=M['hairCap'], orient=C,
-              keep=lambda i, j: hair_keep(sphere_dir((j + 0.5) / NU, (i + 0.5) / (NV - 1))) > -0.03)
+              keep=lambda i, j: hair_keep(sphere_dir((j + 0.5) / NU, (i + 0.5) / (NV - 1))) > -0.14)
 K.subsurf(cap, 1)
 
 
@@ -320,32 +343,9 @@ def strand_to_bun(name, d0, width, thick, lift0=0.004, via=None, n=36, mat=None,
     return ob
 
 
-# front hairline strands sweep back toward the bun
 hs = []
-for k in range(15):
-    fx = -0.86 + 1.72 * k / 14
-    fz = 0.47 - 0.62 * fx * fx + 0.04
-    fy = math.sqrt(max(0.02, 1 - fx * fx - fz * fz))
-    d0 = V((fx, -fy, fz)).normalized()
-    hs.append(strand_to_bun(f'HairFront{k}', d0, 0.040, 0.006, lift0=0.002 + 0.002 * (k % 2)))
-# sides/back strands rising to the bun
-for k in range(16):
-    a = -0.62 * math.pi + 1.24 * math.pi * k / 15  # back half only (y >= -0.35): never across the face
-    d0 = V((math.sin(a) * 0.95, math.cos(a) * 0.95, -0.12 if abs(math.sin(a)) > 0.75 else -0.5)).normalized()
-    if hair_keep(d0) < 0.02:
-        d0 = (d0 + V((0, 0, 0.25))).normalized()
-    hs.append(strand_to_bun(f'HairBack{k}', d0, 0.048, 0.006, lift0=0.0 + 0.002 * (k % 2)))
-# crown strands
-for k in range(8):
-    a = k / 8 * K.TAU
-    d0 = V((math.cos(a) * 0.35 + 0.15, math.sin(a) * 0.35, 0.92)).normalized()
-    hs.append(strand_to_bun(f'HairCrown{k}', d0, 0.045, 0.006, lift0=0.003))
 # side-swept forehead lock (part on character's left / viewer's right, sweeping across the forehead)
 part = V((0.42, -0.55, 0.75)).normalized()
-for k in range(3):
-    via = V((-0.62, -0.62, 0.46 + 0.05 * k)).normalized()
-    hs.append(strand_to_bun(f'HairSwoop{k}', (part + V((0.0, 0.05 * k, 0.04 * k))).normalized(), 0.05, 0.008,
-                            lift0=0.006 + 0.003 * k, via=via))
 for o in hs:
     K.subsurf(o, 1)
 

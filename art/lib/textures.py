@@ -19,7 +19,7 @@ def _tiled(d, W, H, fn, x, y, margin):
                 fn(d, x + ox, y + oy)
 
 
-def floral(path, W=1024, H=1024, seed=3, base=(236, 214, 200), density=2.2):
+def floral(path, W=1024, H=1024, seed=3, base=(232, 204, 190), density=2.6):
     """Cream cotton with scattered small roses / blossoms and leaves (design-board pinafore)."""
     rnd = random.Random(seed)
     im = Image.new('RGB', (W, H), base)
@@ -29,7 +29,7 @@ def floral(path, W=1024, H=1024, seed=3, base=(236, 214, 200), density=2.2):
         x, y = rnd.randrange(W), rnd.randrange(H)
         v = rnd.randint(-10, 6)
         d.point((x, y), fill=tuple(max(0, min(255, c + v)) for c in base))
-    pal = [((222, 120, 104), (196, 82, 72)), ((236, 150, 128), (212, 108, 92)), ((150, 172, 206), (112, 136, 178)),
+    pal = [((214, 96, 80), (178, 60, 52)), ((228, 128, 100), (196, 84, 66)), ((140, 160, 200), (98, 120, 170)), ((214, 96, 80), (178, 60, 52)),
            ((232, 196, 112), (206, 160, 70)), ((214, 132, 160), (180, 96, 128)), ((240, 170, 140), (220, 130, 104))]
     leaf = [(150, 168, 120), (124, 146, 104), (170, 182, 140)]
 
@@ -49,7 +49,7 @@ def floral(path, W=1024, H=1024, seed=3, base=(236, 214, 200), density=2.2):
 
     items = []
     for _ in range(int(150 * density)):
-        items.append((rnd.random() * W, rnd.random() * H, rnd.uniform(14, 30), rnd.choice(pal)))
+        items.append((rnd.random() * W, rnd.random() * H, rnd.uniform(18, 38), rnd.choice(pal)))
     for x, y, s, c in items:
         _tiled(d, W, H, lambda d, X, Y: leaves(d, X, Y, s), x, y, 40)
     for x, y, s, c in items:
@@ -102,7 +102,7 @@ def trim(path, W=1024, H=64):
     im.filter(ImageFilter.GaussianBlur(0.6)).save(path)
 
 
-def weave(path, W=512, H=512, base=(240, 220, 200), seed=5):
+def weave(path, W=512, H=512, base=(236, 212, 188), seed=5):
     """Fine cotton/voile with faint woven dots (blouse)."""
     rnd = random.Random(seed)
     im = Image.new('RGB', (W, H), base)
