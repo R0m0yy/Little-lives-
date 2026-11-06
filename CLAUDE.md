@@ -14,7 +14,7 @@ Strategy B: move to Three.js + commissioned/authored GLB characters. Current cus
 src/*.js concatenated by `python3 tools/build.py` -> dist/index.html. QA: tools/compare.py (character vs reference), tools/pose_check.py, tools/qa_run.py (headless Chrome via Playwright, software GL). refs/design_board.png is the single supplied reference board (lower-right house = architectural authority; separate A/B originals were never supplied).
 
 ## Stage 1 visual proof (2026-11-06, awaiting owner approval)
-bpy (pip, Blender 5.2) works: art/naomi/build_naomi.py and art/house/build_house.py export GLBs to assets/; web/viewer.html + web/house.html render them in Three.js; tools/naomi_round.sh / house_round.sh make side-by-sides in qa/naomi3d, qa/house3d. Status + honest shortfalls: docs/STAGE1_VISUAL_REPORT.md. Do not start the other family members or gameplay until the owner approves Naomi and the house.
+bpy (pip, Blender 5.2) works: art/naomi/build_naomi.py and art/house/build_house.py export GLBs to assets/; web/viewer.html + web/house.html render them in Three.js; tools/naomi_round.sh / house_round.sh make side-by-sides in qa/naomi3d, qa/house3d. Status + honest shortfalls: docs/STAGE1_VISUAL_REPORT.md. Naomi is at round 15 (hair/eyes/mouth+nose/fabrics/pose passes done). Do not rig her, start the other family members or gameplay until the owner approves Naomi and the house.
 
 ## Known open items
 Only the kitchen exists; no bedroom/bathroom/stairs. Sleep is hidden off-room. Naomi v3 not signed off (bun from behind, mitten hands, missing apron layer, flat skin). Dormer roof panels cross in an X (LL-034). Artist commission brief exists as a Claude doc "Little Lives — Naomi 3D Character Commission Brief".

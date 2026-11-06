@@ -498,7 +498,7 @@ for sg in (1, -1):
     # strap
     sp = [V((sg * 0.043 + math.cos(a) * 0.0215, -0.006 + math.sin(a) * 0.004, 0.026 + math.sin(a) * 0.0 + 0.012 * math.sin(a * 0.5 + 0.8)))
           for a in [math.pi * (i / 15) for i in range(16)]]
-    K.sweep(f'Strap{sg}', sp, lambda t: (0.0035, 0.0018), nprof=8, mat=M['shoe'], up=V((0, -1, 0)))
+    K.sweep(f'ShoeStrap{sg}', sp, lambda t: (0.0035, 0.0018), nprof=8, mat=M['shoe'], up=V((0, -1, 0)))
 
 # ================================================================== CLOTHES
 # blouse torso
@@ -632,6 +632,23 @@ def under(u, v):
     k = K.lerp(0.6, 1.0, v)
     return V((math.sin(th) * rx * s * k, -math.cos(th) * ry * s * k, z))
 K.subsurf(K.surface('Underskirt', under, 128, 10, wrap_u=True, mat=M['under']), 1)
+
+# ------------------------------------------------------------------ pose (static, no rig): relaxed stance, head turn + tilt
+HEAD_PARTS = ('Head', 'Ear', 'Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple',
+              'HairCap', 'HairLock', 'Tendril', 'BunCore', 'Curl')
+piv = V((0, 0.012, 0.662))
+Rh = Matrix.Rotation(math.radians(P.get('head_yaw', 4)), 4, 'Z') @ Matrix.Rotation(math.radians(P.get('head_roll', -6)), 4, 'Y') \
+    @ Matrix.Rotation(math.radians(P.get('head_pitch', 3)), 4, 'X')
+Mh = Matrix.Translation(piv) @ Rh @ Matrix.Translation(-piv)
+for o in list(bpy.context.scene.objects):
+    if o.type == 'MESH' and o.name.startswith(HEAD_PARTS):
+        o.data.transform(Mh)
+for o in list(bpy.context.scene.objects):   # weight shift: her left foot steps forward, right foot turns out
+    if o.name.startswith(('Shoe1', 'ShoeStrap1')):
+        o.data.transform(Matrix.Translation(V((0.004, -0.022, 0))))
+    elif o.name.startswith(('Shoe-1', 'ShoeStrap-1')):
+        fp = V((-0.043, 0.0, 0))
+        o.data.transform(Matrix.Translation(fp) @ Matrix.Rotation(math.radians(-16), 4, 'Z') @ Matrix.Translation(-fp))
 
 # ------------------------------------------------------------------ export
 for o in bpy.context.scene.objects:

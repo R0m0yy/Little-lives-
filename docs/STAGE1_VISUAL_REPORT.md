@@ -37,6 +37,17 @@ Side-by-sides are in `qa/naomi3d/round_XX.png` and `qa/house3d/round_XX.png`. **
 - Pose is a stiff A-pose; the board has a relaxed 3/4 stance with head tilt. Not rigged yet (no skeleton/animation).
 - Skin has no subsurface scattering (Three.js has no SSS; approximated with sheen).
 
+## Naomi rounds 11–15 (owner-requested list, one fix per round; "a" files = first attempt, final = refinement)
+| Round | Fix | Result in the side-by-side |
+|---|---|---|
+| 11 hair | Cap split into rounded clumps with sharp valleys flowing to the bun; two-clump swept forehead lock from the parting; matte-silk material (rough .42, low env, cool sheen); 48 smaller, tighter ringlets | Helmet broken up, lock reads, near-black. 11a lock sat on the brows and sheen looked like grey felt → raised/slimmed + darker. **Still:** faint streaky highlight bands on the lock; clumps are smoother than the board's sculpt |
+| 12 eyes | Near-black iris with cool blue-grey lower glow; clear glass cornea (transmission, reflections only); lid crease line; lower lid edge raised, thinner rim | 12a cornea added a milky haze → glass fix. Dark glossy eyes with crisp catch-lights. **Still:** a dark band under each eye from the lower-lid shell |
+| 13 mouth/nose | Mouth line curving up into corner dimples, fuller lower lip, thin upper lip; stronger button tip, nostril wings/dimples, warm tip + under-nose shadow | Soft smile reads; nose now visible but still subtler than the board |
+| 14 fabrics | Floral ~2× larger, softer, muted palette, more cream ground; warmer cream blouse; lace yoke with scalloped edge + 4 pearl buttons; ruffles on the inner strap edges (`round_14_detail.png`) | Print character close to the board. **Still:** yoke eyelets barely visible; strap ruffles read as stiff panels; necklace is now hidden under the yoke |
+| 15 pose | Static pose (no rig): head group turned 4° + tilted 6° about the neck; left foot forward, right foot turned out; renders at 18° | 15a over-turned (30° total) → reduced. **Still:** arms hang straight and symmetric; the board's arms are softly bent |
+
+Triangles rose to ~580k (GLB ~12 MB); a decimated game LOD is still needed. No rig, no other family members, no gameplay — waiting for owner approval.
+
 ## House — 6 rounds
 1 first blockout · 2 roof missing (only edge-on gable planes) → full-width slate front slope, attic opening ·
 3 interiors pale/blown → amber light, golden papers, darker floors · 4 thin trim → chunky posts, spindle friezes, flowers, deeper wing roofs ·
