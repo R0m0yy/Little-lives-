@@ -38,7 +38,7 @@ for name, fn, args in [
     ('wp_sage', TX.wallpaper, dict(base=(190, 170, 110), motif=(160, 140, 84), kind='stripe', seed=3)),
     ('wp_cream', TX.wallpaper, dict(base=(222, 186, 124), motif=(196, 156, 96), kind='floral', seed=4)),
     ('wp_blue', TX.wallpaper, dict(base=(176, 190, 196), motif=(150, 168, 178), kind='damask', seed=5)),
-    ('planks', TX.planks, {}), ('slate', TX.slate, {}), ('siding', TX.siding, {}),
+    ('planks', TX.planks, {}), ('slate', TX.slate2, {}), ('siding', TX.siding, {}),   # round 11: slate2
     ('shingle', TX.fishscale, {}), ('beds', TX.flowerbed, {}),   # round 10: real fish-scale shingles
 ]:
     p = os.path.join(TEX, name + '.png'); fn(p, **args); T[name] = p
@@ -46,7 +46,7 @@ for name, fn, args in [
 M = dict(
     trim=K.material('trim_cream', base='#efe4cf', rough=0.55),
     trimDark=K.material('trim_shadow', base='#d8ccb4', rough=0.6),
-    slate=K.material('roof_slate', tex=T['slate'], rough=0.6),
+    slate=K.material('roof_slate', tex=T['slate'], rough=0.48, spec=0.55),
     siding=K.material('siding', tex=T['siding'], rough=0.7),
     shingle=K.material('siding_shingle', tex=T['shingle'], rough=0.7),
     floor=K.material('floor_planks', tex=T['planks'], rough=0.4, coat=0.4),
@@ -781,7 +781,7 @@ for side in (-1, 1):
     bx('wingFascia', ((x0 + x1) / 2, -0.42, F2 - 0.06), (x1 - x0 + 0.3, 0.06, 0.1), M['trim'], 0.01)
     xo_low = X(1023) if side < 0 else X(1475)
     slab('wingRoof1', [(xo_low, -0.45, F2 - 0.04), (xi, -0.45, F2 + 0.55), (xi, wd, F2 + 0.55), (xo_low, wd, F2 - 0.04)][:: (1 if side > 0 else -1)],
-         M['slate'], 0.05, 0.6)
+         M['slate'], 0.05, 1.0)
     # upper bay with window
     box('bayFront', x0, x1, -0.02, 0.06, F2 + 0.5, F3, M['siding'], 0, 0.8)
     bx('bayWin', ((x0 + x1) / 2, -0.04, (F2 + F3) / 2 + 0.25), (x1 - x0 - 0.3, 0.03, 0.8), M['glass'], 0.0)
@@ -790,7 +790,7 @@ for side in (-1, 1):
     empty(f'Light_bay{side}', ((x0 + x1) / 2, 0.6, F3 - 0.5))
     xo_up = X(1033) if side < 0 else X(1457)
     slab('wingRoof2', [(xo_up, -0.25, F3 - 0.05), (xi, -0.25, Z(770)), (xi, wd, Z(770)), (xo_up, wd, F3 - 0.05)][:: (1 if side > 0 else -1)],
-         M['slate'], 0.05, 0.6)
+         M['slate'], 0.05, 1.0)
     # small pediment over the upper wing roof
     pc = (x0 + x1) / 2
     pc = X(1058.3) if side < 0 else X(1445)
@@ -806,21 +806,21 @@ OV = 0.3               # eave overhang (front)
 xL, xR = X(1060), X(1437)   # round 7: measured eave ends
 HIP_L, HIP_R = X(1090), X(1415)   # ridge ends / hip tops (measured end finials)
 # main roof: front slope only over the parts not covered by the cross gables / attic opening, plus back slope
-slab('roofBack', [(xL, D + OV, EAVE_Z), (xR, D + OV, EAVE_Z), (HIP_R, D * 0.45, RID), (HIP_L, D * 0.45, RID)], M['slate'], 0.06, 0.6)
+slab('roofBack', [(xL, D + OV, EAVE_Z), (xR, D + OV, EAVE_Z), (HIP_R, D * 0.45, RID), (HIP_L, D * 0.45, RID)], M['slate'], 0.06, 1.0)
 # hip ends
-slab('roofHipL', [(xL, -OV, EAVE_Z), (xL, D + OV, EAVE_Z), (HIP_L, D * 0.45, RID), (HIP_L, D * 0.45 - 0.001, RID)], M['slate'], 0.06, 0.6)
-slab('roofHipR', [(xR, D + OV, EAVE_Z), (xR, -OV, EAVE_Z), (HIP_R, D * 0.45 - 0.001, RID), (HIP_R, D * 0.45, RID)], M['slate'], 0.06, 0.6)
+slab('roofHipL', [(xL, -OV, EAVE_Z), (xL, D + OV, EAVE_Z), (HIP_L, D * 0.45, RID), (HIP_L, D * 0.45 - 0.001, RID)], M['slate'], 0.06, 1.0)
+slab('roofHipR', [(xR, D + OV, EAVE_Z), (xR, -OV, EAVE_Z), (HIP_R, D * 0.45 - 0.001, RID), (HIP_R, D * 0.45, RID)], M['slate'], 0.06, 1.0)
 
 
 def front_slope(x0, x1, z_lo, z_hi, y_lo=-OV, y_hi=D * 0.45):
-    slab('roofFront', [(x1, y_lo, z_lo), (x0, y_lo, z_lo), (x0, y_hi, z_hi), (x1, y_hi, z_hi)], M['slate'], 0.06, 0.6)
+    slab('roofFront', [(x1, y_lo, z_lo), (x0, y_lo, z_lo), (x0, y_hi, z_hi), (x1, y_hi, z_hi)], M['slate'], 0.06, 1.0)
 
 
 # main front slope (visible behind/between the gables), cut open above the right attic room
 yR = D * 0.45
 def slope_z(y):
     return EAVE_Z + (RID - EAVE_Z) * (y + OV) / (yR + OV)
-slab('roofFrontHipL', [(HIP_L, D * 0.45, RID), (xL, -OV, EAVE_Z), (xL, -OV, EAVE_Z - 0.001), (HIP_L, D * 0.45 + 0.001, RID)], M['slate'], 0.06, 0.6)
+slab('roofFrontHipL', [(HIP_L, D * 0.45, RID), (xL, -OV, EAVE_Z), (xL, -OV, EAVE_Z - 0.001), (HIP_L, D * 0.45 + 0.001, RID)], M['slate'], 0.06, 1.0)
 y_open = (Z(668) - EAVE_Z) / (RID - EAVE_Z) * (yR + OV) - OV   # slope y at the attic-room top
 front_slope(X(1295) - 0.02, xR, Z(668), RID, y_lo=y_open, y_hi=yR)
 front_slope(X(1410), xR, EAVE_Z, Z(668), y_lo=-OV, y_hi=y_open)   # thin return right of the opening
@@ -849,7 +849,7 @@ for gx, hw, apex, tag in GABLES:
             e = (X_VALLEY, Z_VALLEY)      # clipped at the valley (no X crossing)
         yb_ = D + OV if tag == 'C' else D * 0.6   # round 9: centre gable runs the full depth (attic stair headroom)
         corners = [(gx, -OV - 0.05, apex + 0.05), (e[0], -OV - 0.05, e[1]), (e[0], yb_, e[1]), (gx, yb_, apex + 0.05)]
-        slab(f'gableRoof{tag}{sgn}', corners if sgn < 0 else corners[::-1], M['slate'], 0.06, 0.6)
+        slab(f'gableRoof{tag}{sgn}', corners if sgn < 0 else corners[::-1], M['slate'], 0.06, 1.0)
     # shingled gable face, recessed a little
     GF = -OV - 0.02 if tag == 'L' else -0.05   # round 10: left gable face projects in front of the main slope
     tri = [(gx - hw, GF, base), (gx + hw, GF, base), (gx, GF, apex - 0.05)]

@@ -343,3 +343,27 @@ def fishscale(path, W=512, H=512, base=(224, 216, 204), edge=(150, 138, 124), se
                 inset = 1.5 + k * 0.6
                 d.pieslice((x - sw / 2 + inset, y - sh * 0.9 + inset * 0.5 + t * 3, x + sw / 2 - inset, y + sh * 0.9 - inset), 0, 180, fill=col)
     im.filter(ImageFilter.GaussianBlur(0.6)).save(path)
+
+
+def slate2(path, W=512, H=512, seed=14):
+    """Blue-grey slate (round 11): staggered rows, alternating rectangular / fish-scale courses, per-tile colour
+    variation, dark gaps and a light top edge per course so rows read at dollhouse scale."""
+    rnd = random.Random(seed)
+    im = Image.new('RGB', (W, H), (40, 46, 58)); d = ImageDraw.Draw(im)
+    rows, cols = 10, 8
+    rh, cw = H / rows, W / cols
+    pal = [(128, 146, 174), (116, 134, 162), (138, 152, 176), (104, 120, 148), (122, 140, 170), (146, 160, 182)]
+    for r in range(rows + 1):
+        y = r * rh; off = (r % 2) * cw / 2; scal = (r % 3 == 1)
+        for c in range(-1, cols + 1):
+            x = c * cw + off
+            col = rnd.choice(pal); col = tuple(max(0, min(255, v + rnd.randint(-8, 8))) for v in col)
+            x0, x1 = x + 2, x + cw - 2
+            if scal:
+                d.rectangle((x0, y - rh * 0.2, x1, y + rh * 0.55), fill=col)
+                d.pieslice((x0, y + rh * 0.1, x1, y + rh * 1.15), 0, 180, fill=col)
+            else:
+                d.rounded_rectangle((x0, y, x1, y + rh * 1.05), radius=3, fill=col)
+            d.line((x0 + 2, y + 2, x1 - 2, y + 2), fill=tuple(min(255, v + 26) for v in col), width=2)   # light top edge
+            d.line((x0 + 2, y + rh * 0.98, x1 - 2, y + rh * 0.98), fill=tuple(max(0, v - 40) for v in col), width=2)
+    im.filter(ImageFilter.GaussianBlur(0.7)).save(path)
