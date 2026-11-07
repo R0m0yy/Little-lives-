@@ -13,7 +13,7 @@ from mathutils import Vector as V
 import head as HD
 
 P = dict(
-    bun=V((-0.170, 0.160, 0.862)), bun_r=(0.084, 0.082, 0.140),   # tall oval chignon (board: y 96..182 px)
+    bun=V((-0.182, 0.170, 0.846)), bun_r=(0.088, 0.086, 0.118),   # round 32: rounded chignon, lower and further back
     t_top=0.016, t_front=0.020, t_side=0.012, t_back=0.022,
 )
 
@@ -120,37 +120,47 @@ def build(K, M):
     for name, ws, w, th, lift in CL:
         clump(name, ws, w, th, lift=lift)
 
-    # ---------- bun: core + 10 S-curve curly locks + 3 hanging ringlets
+    # ---------- bun (round 32): rounded mass = core + 11 soft S-curve locks in a rosette + loose curls
     br = random.Random(41)
-    K.subsurf(K.ellipsoid('BunCore', B, (P['bun_r'][0] * 0.82, P['bun_r'][1] * 0.82, P['bun_r'][2] * 0.82), mat=M['bun']), 1)
+    RX, RY, RZ = P['bun_r']
+    w_ = (B - C).normalized()                       # outward axis (away from the head)
+    u_ = (V((0, 0, 1)) - w_ * w_.z).normalized()    # up on the bun
+    v_ = w_.cross(u_)
 
-    def bun_lock(name, axis, start, sweep, layer, width, th, amp, freq):
-        axis = axis.normalized()
-        start = (start - axis * start.dot(axis)).normalized()
-        side = axis.cross(start)
+    def bun_surf(az, lat, s=1.0):
+        d = u_ * (math.cos(lat) * math.cos(az)) + v_ * (math.cos(lat) * math.sin(az)) + w_ * math.sin(lat)
+        # ellipsoid radii in world axes
+        r = 1.0 / math.sqrt((d.x / RX) ** 2 + (d.y / RY) ** 2 + (d.z / RZ) ** 2)
+        return B + d * r * s, d
+    K.subsurf(K.ellipsoid('BunCore', B, (RX * 0.92, RY * 0.92, RZ * 0.92), mat=M['bun']), 1)
+    NL = 11
+    for k in range(NL):
+        az0 = 2 * math.pi * k / NL + br.uniform(-0.12, 0.12)
+        sweep = math.radians(br.uniform(125, 160))
         pts, nrm = [], []
-        n = 48
-        for k in range(n):
-            t = k / (n - 1)
-            a = sweep * t
-            d = (start * math.cos(a) + side * math.sin(a) + axis * amp * math.sin(freq * math.pi * t)).normalized()
-            rr = V((P['bun_r'][0] * d.x, P['bun_r'][1] * d.y, P['bun_r'][2] * d.z)).length * layer * (1 + 0.06 * math.sin(math.pi * t))
-            p = B + d * rr
-            pts.append(p); nrm.append((p - B).normalized())
-        prof = lambda t: (th * (0.25 + 0.75 * math.sin(math.pi * t) ** 0.6) * 0.5, width * (0.25 + 0.75 * math.sin(math.pi * t) ** 0.5) * 0.5)
-        return K.subsurf(K.sweep(name, pts, prof, nprof=12, mat=M['bun'], normals=nrm, uv_len=2.5), 1)
-    for k in range(10):
-        ax = V((br.uniform(-1, 1), br.uniform(-1, 1), br.uniform(-1, 1)))
-        st = V((br.uniform(-1, 1), br.uniform(-1, 1), br.uniform(-1, 1)))
-        bun_lock(f'BunLock{k}', ax, st, math.radians(br.uniform(200, 290)), 0.90 + 0.10 * (k % 3) / 2, br.uniform(0.034, 0.044),
-                 br.uniform(0.018, 0.024), br.uniform(0.18, 0.30), br.choice((2, 3)))
-    for k in range(3):   # hanging ringlets below the bun, toward her right (board: curls at the lower left of the bun)
-        base = B + V((-0.035 - 0.02 * k, 0.02 - 0.03 * k, -P['bun_r'][2] * 0.75))
+        n = 60
+        for i2 in range(n):
+            t = i2 / (n - 1)
+            lat = math.radians(-48 + 100 * t) + math.radians(9) * math.sin(2 * math.pi * t)      # S-wave across the mass
+            az = az0 + sweep * t
+            pnt, d = bun_surf(az, lat, 1.0 + 0.06 * math.sin(math.pi * min(1.0, t * 1.2)))
+            if t > 0.78:   # tip curls back on itself
+                tt = (t - 0.78) / 0.22
+                ang = tt * 1.6 * math.pi
+                tang = (bun_surf(az + 0.05, lat, 1.0)[0] - pnt).normalized()
+                pnt = pnt + (tang * (math.sin(ang) * 0.012) - d * ((1 - math.cos(ang)) * 0.010)) * tt
+            pts.append(pnt); nrm.append(d)
+        th, wd = br.uniform(0.026, 0.032), br.uniform(0.046, 0.056)
+        prof = lambda t, th=th, wd=wd: (th * (0.22 + 0.78 * math.sin(math.pi * min(1.0, t * 1.05)) ** 0.55) * 0.5,
+                                        wd * (0.18 + 0.82 * math.sin(math.pi * min(1.0, 0.03 + t)) ** 0.5) * 0.5)
+        K.subsurf(K.sweep(f'BunLock{k}', pts, prof, nprof=14, mat=M['bun'], normals=nrm, uv_len=2.5), 1)
+    for k in range(3):   # loose curls hanging below the bun toward her right (board: lower left of the bun)
+        base, _ = bun_surf(math.radians(170 + 22 * k), math.radians(-8 - 10 * k), 0.95)
         ph = br.random() * 2 * math.pi
-        ln = 0.050 + 0.012 * k
-        pts = [base + V((math.cos(ph + t * 2.4 * 2 * math.pi) * 0.010 * (1 + 0.5 * t) - 0.012 * t, math.sin(ph + t * 2.4 * 2 * math.pi) * 0.010 * (1 + 0.5 * t),
+        ln = 0.045 + 0.012 * k
+        pts = [base + V((math.cos(ph + t * 2.3 * 2 * math.pi) * 0.009 * (1 + 0.5 * t) - 0.010 * t, math.sin(ph + t * 2.3 * 2 * math.pi) * 0.009 * (1 + 0.5 * t),
                          -t * ln)) for t in [i / 59 for i in range(60)]]
-        K.subsurf(K.sweep(f'BunCurl{k}', pts, lambda t: (0.0065 * (1 - 0.55 * t) + 0.001, 0.006 * (1 - 0.55 * t) + 0.001), nprof=10,
+        K.subsurf(K.sweep(f'BunCurl{k}', pts, lambda t: (0.0060 * (1 - 0.55 * t) + 0.001, 0.0056 * (1 - 0.55 * t) + 0.001), nprof=10,
                           mat=M['bun'], uv_len=3.0), 1)
 
     # ---------- 2 face-framing curls (thin tapered spirals) in front of the ears
