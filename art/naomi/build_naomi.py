@@ -53,8 +53,8 @@ M = dict(
     crease=K.material('skin_crease', base='#9a4a30', rough=0.6),
     lip=K.material('skin_lip', base='#c4604e', rough=0.38, spec=0.55),
     mouth=K.material('skin_mouth', base='#7a2a22', rough=0.6),
-    hair=K.material('hair', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
-    hairCap=K.material('hair_cap', base='#0b0708', rough=0.42, aniso=0.35, spec=0.5, sheen=0.28, sheen_tint='#56627e', sheen_rough=0.4),
+    hair=K.material('hair', base='#120b0c', rough=0.30, aniso=0.65, spec=0.65, sheen=0.15, sheen_tint='#56627e', sheen_rough=0.4),
+    hairCap=K.material('hair_cap', base='#060304', rough=0.6, aniso=0.2, spec=0.35),
     bun=K.material('hair_bun', base='#3a2218', rough=0.48, aniso=0.3, spec=0.45, sheen=0.4, sheen_tint='#c09070', sheen_rough=0.45),
     blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.85, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
@@ -337,7 +337,7 @@ def _flow_basis():
 FLOW = _flow_basis()
 
 
-def clump(d, n=11, depth=0.62):
+def clump(d, n=11, depth=0.25):
     """Sculpted clumps: rounded lobes with sharp valleys, flowing along great circles into the bun."""
     a, e1, e2 = FLOW
     psi = math.atan2(d.dot(e2), d.dot(e1))
@@ -397,62 +397,91 @@ def dirs_path(ws, n):
     return out
 
 
-def lock(name, ws, width, thick, lift, n=60):
-    ds = dirs_path([w.normalized() for w in ws], n)
+def strand(name, ds, width, thick, lift, mat, n=None, wave=0.0, seed=0):
+    """Thin tapered hair strand riding over the cap along unit directions ds."""
+    r = random.Random(seed)
+    ph = r.random() * K.TAU
     pts, nrm = [], []
+    m = len(ds)
     for k, d in enumerate(ds):
-        t = k / (n - 1)
-        p = cap_point(d, lift * (0.4 + 0.6 * math.sin(math.pi * min(1, t * 1.15))))
-        pts.append(p); nrm.append((p - C).normalized())
-    prof = lambda t: (thick * (0.30 + 0.70 * math.sin(math.pi * min(1, 0.04 + t * 1.05)) ** 0.5),
-                      width * (0.30 + 0.70 * math.sin(math.pi * min(1, 0.06 + t)) ** 0.6))
-    # a soft groove down the middle of the lock so it reads as two twisted clumps
-    groove = lambda t, ang: 1 - 0.18 * math.exp(-((math.cos(ang) - 1) ** 2) / 0.05)
-    return K.subsurf(K.sweep(name, pts, prof, nprof=18, mat=M['hair'], normals=nrm, uv_len=4, offset=groove), 1)
+        t = k / (m - 1)
+        p = cap_point(d, lift * math.sin(math.pi * t) ** 0.8)   # ends tuck into the cap (no shingled tips)
+        nn = (p - C).normalized()
+        pts.append(p + nn * wave * math.sin(t * 9 + ph) * math.sin(math.pi * t)); nrm.append(nn)
+    prof = lambda t: (thick * (0.25 + 0.75 * math.sin(math.pi * min(1, 0.03 + t)) ** 0.5),
+                      width * (0.15 + 0.85 * math.sin(math.pi * min(1, 0.05 + t * 0.98)) ** 0.7))
+    return K.sweep(name, pts, prof, nprof=6, mat=mat, normals=nrm, uv_len=6)
 
 
-# side-swept forehead lock: from the parting (character's left / viewer's right) across the forehead, back to the bun
+def jitter(d, amt, r):
+    return (d + V((r.uniform(-amt, amt), r.uniform(-amt, amt), r.uniform(-amt, amt)))).normalized()
+
+
+# (a) scalp strands: ~130 thin strands from hairline/crown flowing into the bun, over a darker cap
+sr = random.Random(21)
+golden = math.pi * (3 - math.sqrt(5))
+NS = 1400
+count = 0
+for k in range(NS):
+    zz = 1 - 2 * (k + 0.5) / NS
+    rr = math.sqrt(1 - zz * zz)
+    d0 = V((math.cos(golden * k) * rr, math.sin(golden * k) * rr, zz))
+    kp = hair_keep(d0)
+    if kp < 0.06 or d0.dot(bun_dir) > 0.80 or (kp > 0.30 and sr.random() < 0.75):
+        continue  # hairline + some crown starts; skip the bun area
+    via = jitter(slerp(d0, bun_dir, 0.5).normalized(), 0.05, sr)
+    ds = dirs_path([d0, via, bun_dir], 30)
+    strand(f'HairStrand{count}', ds, sr.uniform(0.0075, 0.011), sr.uniform(0.0045, 0.0062), sr.uniform(0.002, 0.007), M['hair'],
+           wave=0.0015, seed=k)
+    count += 1
+print('scalp strands', count)
+
+# (b) side-swept forehead lock as a fan of strands from the parting across the forehead
 part = V((0.45, -0.50, 0.74))
-lock('HairLock0', [part, V((0.10, -0.76, 0.68)), V((-0.50, -0.66, 0.58)), V((-0.86, -0.15, 0.52)), bun_dir], 0.058, 0.016, 0.022)
-lock('HairLock1', [part + V((0.06, 0.05, 0.06)), V((0.05, -0.64, 0.80)), V((-0.45, -0.56, 0.70)), V((-0.80, -0.05, 0.64)), bun_dir], 0.050, 0.014, 0.030)
+base_ws = [part, V((0.10, -0.76, 0.68)), V((-0.50, -0.66, 0.58)), V((-0.86, -0.15, 0.52)), bun_dir]
+for k in range(22):
+    t = k / 21
+    ws = [jitter(w + V((0.0, 0.03 * t, 0.10 * t)), 0.012, sr) for w in base_ws[:-1]] + [bun_dir]
+    strand(f'HairSwoop{k}', dirs_path(ws, 46), sr.uniform(0.009, 0.012), 0.0055, 0.004 + 0.010 * t + sr.uniform(0, 0.002), M['hair'],
+           wave=0.002, seed=500 + k)
 
 
-# curly tendrils at the temples
-def tendril(name, top, length, turns, rad, tube, sg):
+# (c) two loose curls framing the face, in front of the ears
+def face_curl(name, top, length, turns, r0, r1, tube, sg, seed):
+    r = random.Random(seed)
+    ph = r.random() * K.TAU
     pts = []
-    n = 48
+    n = 70
     for k in range(n):
         t = k / (n - 1)
-        a = t * turns * K.TAU
-        pts.append(top + V((sg * math.cos(a) * rad * (0.6 + 0.4 * t), -math.sin(a) * rad * (0.6 + 0.4 * t), -t * length)))
-    return K.subsurf(K.sweep(name, pts, lambda t: (tube * (1 - 0.7 * t), tube * (1 - 0.7 * t)), nprof=8, mat=M['hair']), 1)
+        a = ph + t * turns * K.TAU
+        rad = K.lerp(r0, r1, t)
+        pts.append(top + V((sg * (math.cos(a) * rad + 0.010 * t), -math.sin(a) * rad - 0.012 * t, -t * length)))
+    return K.sweep(name, pts, lambda t: (tube * (1 - 0.6 * t) + 0.0006, tube * (1 - 0.6 * t) + 0.0006), nprof=8, mat=M['hair'], uv_len=6)
 
 
-tendril('TendrilR', head_raw(V((0.92, -0.38, -0.05)).normalized()) + V((0.004, -0.004, 0.0)), 0.085, 1.6, 0.009, 0.0055, 1)
-tendril('TendrilL', head_raw(V((-0.93, -0.33, 0.05)).normalized()) + V((-0.006, -0.004, 0.0)), 0.06, 1.3, 0.008, 0.005, -1)
+for sg in (1, -1):
+    top = cap_point(V((sg * 0.84, -0.50, 0.02)).normalized(), 0.002)
+    face_curl(f'FaceCurl{sg}', top, 0.105, 2.6, 0.0075, 0.012, 0.0042, sg, 80 + sg)
 
-# bun: dark core + ringlet coils
-K.subsurf(K.ellipsoid('BunCore', BUN, (P['bun_r'] * 0.86, P['bun_r'] * 0.8, P['bun_r'] * 0.86), mat=M['bun']), 1)
-golden = math.pi * (3 - math.sqrt(5))
-NCURL = 48
+# (d) bun: core + many small loose ringlets springing outward
+K.subsurf(K.ellipsoid('BunCore', BUN, (P['bun_r'] * 0.80, P['bun_r'] * 0.76, P['bun_r'] * 0.80), mat=M['bun']), 1)
+NCURL = 90
 for k in range(NCURL):
     zz = 1 - 2 * (k + 0.5) / NCURL
     rr = math.sqrt(1 - zz * zz)
     d = V((math.cos(golden * k) * rr, math.sin(golden * k) * rr, zz))
-    if d.dot(-bun_dir) > 0.55:  # inside the head: skip
+    if d.dot(-bun_dir) > 0.5:
         continue
-    layer = 0.70 if k % 3 == 0 else 0.86
-    cen = BUN + d * P['bun_r'] * layer
+    d = jitter(d, 0.15, sr)
+    cen = BUN + d * P['bun_r'] * sr.uniform(0.62, 0.78)
     t1 = d.cross(V((0, 0, 1)) if abs(d.z) < 0.9 else V((1, 0, 0))).normalized()
     t2 = d.cross(t1)
-    rad = P['bun_r'] * rnd.uniform(0.20, 0.27)
-    pts = []
-    for i in range(40):
-        t = i / 39
-        a = t * K.TAU * 1.7 + rnd.random()
-        rr2 = rad * (1 - 0.55 * t)
-        pts.append(cen + (t1 * math.cos(a) + t2 * math.sin(a)) * rr2 + d * (0.25 - t * 0.5) * rad)
-    K.subsurf(K.sweep(f'Curl{k}', pts, lambda t: (0.0105 * (1 - 0.5 * t), 0.0095 * (1 - 0.5 * t)), nprof=12, mat=M['bun'], uv_len=3), 1)
+    rad, ln, turns = sr.uniform(0.0055, 0.0085), sr.uniform(0.020, 0.032), sr.uniform(1.6, 2.4)
+    ph = sr.random() * K.TAU
+    pts = [cen + d * (t * ln) + (t1 * math.cos(ph + t * turns * K.TAU) + t2 * math.sin(ph + t * turns * K.TAU)) * rad * (1 - 0.25 * t)
+           for t in [i / 39 for i in range(40)]]
+    K.sweep(f'Ringlet{k}', pts, lambda t: (0.0042 * (1 - 0.55 * t) + 0.0005, 0.0040 * (1 - 0.55 * t) + 0.0005), nprof=8, mat=M['bun'], uv_len=3)
 
 # ================================================================== BODY (union of arms + hands + legs + neck)
 def arm_parts(sg):
@@ -635,7 +664,7 @@ K.subsurf(K.surface('Underskirt', under, 128, 10, wrap_u=True, mat=M['under']), 
 
 # ------------------------------------------------------------------ pose (static, no rig): relaxed stance, head turn + tilt
 HEAD_PARTS = ('Head', 'Ear', 'Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple',
-              'HairCap', 'HairLock', 'Tendril', 'BunCore', 'Curl')
+              'HairCap', 'HairStrand', 'HairSwoop', 'FaceCurl', 'BunCore', 'Ringlet')
 piv = V((0, 0.012, 0.662))
 Rh = Matrix.Rotation(math.radians(P.get('head_yaw', 4)), 4, 'Z') @ Matrix.Rotation(math.radians(P.get('head_roll', -6)), 4, 'Y') \
     @ Matrix.Rotation(math.radians(P.get('head_pitch', 3)), 4, 'X')
