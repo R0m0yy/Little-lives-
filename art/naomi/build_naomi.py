@@ -26,8 +26,8 @@ P = dict(
     brow_z=0.850,
     mouth_z=0.703, nose_z=0.742,
     collar_z=0.645, waist_z=0.474, hem_z=0.128, hem_rx=0.235, hem_ry=0.205,
-    shoulder=V((0.100, 0.0, 0.598)), elbow=V((0.156, -0.018, 0.452)), wrist=V((0.178, -0.092, 0.338)),
-    hand_c=V((0.181, -0.108, 0.308)),   # hands rest on the front-sides of the skirt (round 10: were buried inside it)
+    shoulder=V((0.100, 0.0, 0.598)), elbow=V((0.153, 0.006, 0.456)), wrist=V((0.182, -0.078, 0.346)),
+    hand_c=V((0.185, -0.094, 0.322)),   # hands rest on the front-sides of the skirt (round 10: were buried inside it)
     bun_c=V((-0.150, 0.060, 0.868)), bun_r=0.078,
 )
 C = P['head_c']
@@ -488,19 +488,19 @@ def arm_parts(sg):
     S, E, W, Hc = [V((sg * v.x, v.y, v.z)) for v in (P['shoulder'], P['elbow'], P['wrist'], P['hand_c'])]
     parts = [K.capsule('ua', S, E, 0.030, 0.024), K.capsule('fa', E, W, 0.023, 0.016)]
     inward = V((-sg, 0, 0))
-    parts.append(K.ellipsoid('palm', Hc, (0.0100, 0.022, 0.020), nu=20, nv=14))
+    parts.append(K.ellipsoid('palm', Hc, (0.0105, 0.020, 0.017), nu=20, nv=14))
     parts.append(K.capsule('wristj', W, Hc + V((0, 0, 0.01)), 0.0165, 0.016))
-    kz = Hc.z - 0.016
-    for i, (oy, ln) in enumerate([(-0.0180, 0.024), (-0.0060, 0.028), (0.0060, 0.026), (0.0178, 0.021)]):
+    kz = Hc.z - 0.013
+    for i, (oy, ln) in enumerate([(-0.0150, 0.018), (-0.0050, 0.021), (0.0050, 0.0195), (0.0148, 0.016)]):  # shorter, closer
         k0 = V((Hc.x + inward.x * 0.001, Hc.y + oy, kz))
-        mid = k0 + V((inward.x * 0.003, oy * 0.30, -ln * 0.55))
-        tip = mid + V((inward.x * 0.007, oy * 0.25, -ln * 0.45))
+        mid = k0 + V((inward.x * 0.004, oy * 0.06 - 0.002, -ln * 0.52))      # relaxed: gentle inward + forward curl
+        tip = mid + V((inward.x * 0.009, oy * 0.04 - 0.004, -ln * 0.40))
         rr = 0.0047 if i < 3 else 0.0042
         parts.append(K.capsule(f'f{i}a', k0, mid, rr, rr * 0.95, nprof=12, nseg=6))
         parts.append(K.capsule(f'f{i}b', mid, tip, rr * 0.95, rr * 0.82, nprof=12, nseg=6))
-    t0 = Hc + V((inward.x * 0.007, -0.019, 0.006))
-    t1 = t0 + V((inward.x * 0.008, -0.010, -0.012))
-    t2 = t1 + V((inward.x * 0.005, -0.004, -0.010))
+    t0 = Hc + V((inward.x * 0.007, -0.017, 0.004))
+    t1 = t0 + V((inward.x * 0.008, -0.006, -0.010))
+    t2 = t1 + V((inward.x * 0.006, -0.001, -0.008))
     parts += [K.capsule('th1', t0, t1, 0.0062, 0.0055, nprof=12, nseg=6), K.capsule('th2', t1, t2, 0.0055, 0.0048, nprof=12, nseg=6)]
     return parts
 
