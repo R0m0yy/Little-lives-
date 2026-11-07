@@ -19,11 +19,11 @@ os.makedirs(TEX, exist_ok=True)
 
 # ------------------------------------------------------------------ parameters (tuned in compare rounds)
 P = dict(
-    head_c=V((0, 0.0, 0.800)), head_rx=0.150, head_ry=0.138, head_rz_top=0.152, head_rz_bot=0.152,
-    cheek_amp=0.115, cheek_low=-0.40, chin_narrow=0.10,
-    eye_x=0.067, eye_z=0.796, eye_r=0.046, eye_depth=0.62, eye_out=0.10,
+    head_c=V((0, 0.0, 0.800)), head_rx=0.162, head_ry=0.142, head_rz_top=0.146, head_rz_bot=0.146,
+    cheek_amp=0.13, cheek_low=-0.40, chin_narrow=0.10,
+    eye_x=0.065, eye_z=0.778, eye_r=0.050, eye_depth=0.62, eye_out=0.10,
     lid_up=47, lid_low=-42, lid_corner=4,
-    brow_z=0.850,
+    brow_z=0.834,
     mouth_z=0.703, nose_z=0.742,
     collar_z=0.645, waist_z=0.474, hem_z=0.128, hem_rx=0.235, hem_ry=0.205,
     shoulder=V((0.100, 0.0, 0.598)), elbow=V((0.153, 0.006, 0.456)), wrist=V((0.182, -0.078, 0.346)),
@@ -98,10 +98,10 @@ def head_raw(d):
 
 
 BUMPS = [  # (direction, amplitude (fraction of radius), sigma radians)
-    (V((0.52, -0.78, -0.40)), 0.072, 0.31), (V((-0.52, -0.78, -0.40)), 0.072, 0.31),  # apple cheeks (fuller)
-    (V((0, -0.97, -0.355)), 0.085, 0.064),  # nose button (tip)
+    (V((0.52, -0.78, -0.42)), 0.090, 0.30), (V((-0.52, -0.78, -0.42)), 0.090, 0.30),  # apple cheeks (fuller, round 22)
+    (V((0, -0.97, -0.37)), 0.055, 0.052),   # nose button (smaller, round 22)
     (V((0, -0.96, -0.22)), 0.012, 0.05),    # soft bridge
-    (V((0.085, -0.96, -0.40)), 0.022, 0.040), (V((-0.085, -0.96, -0.40)), 0.022, 0.040),   # nostril wings
+    (V((0.065, -0.96, -0.41)), 0.014, 0.032), (V((-0.065, -0.96, -0.41)), 0.014, 0.032),   # nostril wings
     (V((0.045, -0.96, -0.425)), -0.010, 0.028), (V((-0.045, -0.96, -0.425)), -0.010, 0.028),  # nostril dimples
     (V((0, -0.95, -0.62)), 0.012, 0.12),    # chin pad
     (V((0, -0.94, -0.53)), -0.010, 0.07),   # mouth line
@@ -325,7 +325,7 @@ def hair_keep(d):
 
 
 def hair_thick(d):
-    t = 0.04 + 0.24 * max(0, d.z) ** 1.6 + 0.05 * max(0, d.y) + 0.04 * abs(d.x)
+    t = 0.04 + 0.18 * max(0, d.z) ** 1.6 + 0.05 * max(0, d.y) + 0.04 * abs(d.x)
     t += 0.10 * gauss(d, V((0.18, -0.45, 0.85)), 0.40)       # pompadour lift above the parting       # lift above the parting / forehead
     return t
 
