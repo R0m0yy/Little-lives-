@@ -325,7 +325,7 @@ HH = HEAD.H
 LM = {}
 for sg, side in ((-1, 'R'), (1, 'L')):
     E, f, u, o = HINFO['frames'][sg]
-    LM[f'eye_{side}'] = E + f * HH['eye_r']
+    LM[f'eye_{side}'] = E + HEAD.GAZE * HH['eye_r']   # iris centre (gaze straight ahead)
     inner, outer = HINFO['corners'][sg]
     LM[f'eye_{side}_inner'] = inner; LM[f'eye_{side}_outer'] = outer
     bxm = sg * (HH['brow_x0'] + HH['brow_x1']) / 2

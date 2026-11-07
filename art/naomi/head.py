@@ -23,7 +23,7 @@ from mathutils.bvhtree import BVHTree
 # ----------------------------------------------------------------------------------------------- parameters
 H = dict(
     C=V((0.0, 0.0, 0.818)), a=0.126, bf=0.112, bb=0.126, c_top=0.152, c_bot=0.160,
-    eye_x=0.0639, eye_z=0.801, eye_front_y=-0.108, eye_r=0.043, iris_deg=56.0,   # round 28: set into the face, raised
+    eye_x=0.0639, eye_z=0.801, eye_front_y=-0.102, eye_r=0.043, iris_deg=56.0, eye_wrap=16.0,   # r28 set in + raised; r34 wrap
     ap_in=58.0, ap_out=80.0, lid_up=50.0, lid_low=-60.0, corner_in=-4.0, corner_out=8.0,
     nose_z=0.755, mouth_z=0.727, mouth_hw=0.0285, chin_z=0.676,
     brow_z=0.864, brow_x0=0.034, brow_x1=0.104, brow_arch=0.010, brow_thick=0.0078,
@@ -91,13 +91,19 @@ def hair_keep(p):
 
 # ----------------------------------------------------------------------------------------------- eyes
 def eye_frame(sg):
-    """sg=-1 her right eye, +1 her left eye. Returns (E centre, f gaze, u up, o outward)."""
+    """sg=-1 her right eye, +1 her left eye. Returns (E centre, f aperture-forward, u up, o outward).
+    Round 34: the lid aperture is turned outward by eye_wrap degrees so the openings wrap around the round face
+    (near eye wider, far eye foreshortened, like the board); the iris gaze stays straight ahead (GAZE)."""
     re = H['eye_r']
-    f = V((0.0, -1.0, 0.0))
+    th = math.radians(H['eye_wrap'])
+    f = V((sg * math.sin(th), -math.cos(th), 0.0))
     E = V((sg * H['eye_x'], H['eye_front_y'] + re, H['eye_z']))
     u = V((0.0, 0.0, 1.0))
-    o = V((sg * 1.0, 0.0, 0.0))
+    o = V((sg * math.cos(th), math.sin(th), 0.0))
     return E, f, u, o
+
+
+GAZE = V((0.0, -1.0, 0.0))
 
 
 def aperture(t):
@@ -266,7 +272,7 @@ def build(K, M):
         def eyeball(uu, vv, E=E):
             th, ph = uu * 2 * math.pi, vv * math.pi
             dl = V((math.sin(ph) * math.cos(th), math.sin(ph) * math.sin(th), math.cos(ph)))  # z = forward
-            return E + (X * dl.x + u * dl.y + f * dl.z) * re
+            return E + (X * dl.x + u * dl.y + GAZE * dl.z) * re
 
         def eye_uv(i, j, n=48, m=36):
             th, ph = j / n * 2 * math.pi, i / (m - 1) * math.pi
@@ -277,7 +283,7 @@ def build(K, M):
             th, ph = uu * 2 * math.pi, vv * math.radians(80)
             bul = 1.002 + 0.075 * max(0.0, math.cos(min(ph, iris_t) / iris_t * math.pi / 2)) ** 1.6 * (ph < iris_t)
             dl = V((math.sin(ph) * math.cos(th), math.sin(ph) * math.sin(th), math.cos(ph)))
-            return E + (X * dl.x + u * dl.y + f * dl.z) * re * bul
+            return E + (X * dl.x + u * dl.y + GAZE * dl.z) * re * bul
         K.subsurf(K.surface(f'Cornea{sg}', cornea, 40, 18, wrap_u=True, mat=M['cornea'], orient=E), 1)
 
         # thick dark upper lid line wrapping over the iris top, thickening toward the outer corner
