@@ -319,4 +319,4 @@ def export_glb(path, objs=None):
     for o in (objs or bpy.context.scene.objects):
         o.select_set(True)
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=bool(objs), export_apply=True,
-                              export_tangents=False, export_vertex_color='ACTIVE', export_yup=True)
+                              export_tangents=False, export_vertex_color='ACTIVE', export_yup=True, export_extras=True)

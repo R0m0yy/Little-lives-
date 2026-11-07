@@ -173,6 +173,7 @@ for sg in (1, -1):
 
 
 # ------------------------------------------------------------------ eyes
+BROW_MID = {}
 def eye_frame(sg):
     f = eye_dir(sg)
     f = (f + V((sg * P['eye_out'], 0, 0))).normalized()  # gaze slightly outward from socket normal -> forward-ish
@@ -283,6 +284,7 @@ for sg in (1, -1):
         pp = head_point(d)
         bp.append(pp + (pp - C).normalized() * 0.003)
         bn.append((pp - C).normalized())
+    BROW_MID[sg] = bp[len(bp) // 2]
     K.subsurf(K.sweep(f'Brow{sg}', bp, lambda t: (0.0036, 0.0088 * (1 - 0.45 * t) * min(1, t * 6 + 0.35)), nprof=8, mat=M['brow'], normals=bn), 1)
 
 # mouth: soft closed smile — darker line curving up at the corners, fuller lower lip, thin upper lip
@@ -771,9 +773,59 @@ for o in list(bpy.context.scene.objects):   # weight shift: her left foot steps 
         fp = V((-0.047, 0.0, 0))
         o.data.transform(Matrix.Translation(fp) @ Matrix.Rotation(math.radians(-16), 4, 'Z') @ Matrix.Translation(-fp))
 
+# ------------------------------------------------------------------ measurement landmarks (LM_ empties) + mesh groups
+# Anchor landmarks are empties; silhouette landmarks (hair_top, bun_top, chin, cheeks, ear extremes) are computed by
+# web/lib/refcam.js from the mesh groups below, because they depend on the camera.
+def lm_points():
+    out = {}
+    for sg, side in ((-1, 'R'), (1, 'L')):     # sg=-1 is her right
+        c, f, r, u = eye_frame(sg)
+        out[f'eye_{side}'] = c + f * P['eye_r']
+        am = math.radians(78)
+        for a, nm in ((-am, 'outer'), (am, 'inner')):          # r points to the nose: outer corner = a < 0
+            b = math.radians(P['lid_corner'])
+            d = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
+            out[f'eye_{side}_{nm}'] = c + d * P['eye_r'] * 1.02
+        out[f'brow_{side}'] = BROW_MID[sg]
+    out['nose_tip'] = head_point(V((0, -0.97, -0.37)).normalized())
+    out['mouth_R'] = on_face(-0.020, P['mouth_z'] + 0.0075, 0.0008)[0]
+    out['mouth_L'] = on_face(0.020, P['mouth_z'] + 0.0075, 0.0008)[0]
+    out['mouth_centre'] = on_face(0.0, P['mouth_z'] - 0.0012, 0.0008)[0]
+    fz = 0.2
+    while fz < 0.98 and hair_keep(V((0, -math.sqrt(1 - fz * fz), fz))) < 0:
+        fz += 0.005
+    out['hairline_centre'] = head_point(V((0, -math.sqrt(1 - fz * fz), fz)))
+    for sx, side in ((-1, 'R'), (1, 'L')):
+        fzz = (P['brow_z'] - 0.012 - C.z) / P['head_rz_top']
+        fx = 0.3
+        while fx < 0.99:
+            d = V((sx * fx, -math.sqrt(max(0.01, 1 - fx * fx - fzz * fzz)), fzz)).normalized()
+            if hair_keep(d) > 0:
+                break
+            fx += 0.005
+        out[f'hairline_temple_{side}'] = head_point(d)
+    return out
+
+
+GROUPS = [('Head', 'head'), ('EarringHook', 'jewel'), ('Earring', 'jewel'), ('Ear', 'ear'),
+          (('Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple'), 'face'),
+          (('BunCore', 'BunLock', 'BunCurl'), 'bun'), (('FaceCurl',), 'curl'),
+          (('HairCap', 'HairStrand', 'HairNape', 'HairSwoop'), 'hair')]
+for o in bpy.context.scene.objects:
+    for pre, g in GROUPS:
+        if o.name.startswith(pre):
+            o['ll_group'] = g
+            if g == 'ear':
+                o['ll_side'] = 'R' if o.name.endswith('-1') else 'L'
+            break
+for nm, pt in lm_points().items():
+    e = bpy.data.objects.new('LM_' + nm, None); e.location = Mh @ pt; e.empty_display_size = 0.005
+    bpy.context.scene.collection.objects.link(e)
+
 # ------------------------------------------------------------------ export
 for o in bpy.context.scene.objects:
-    o.data.name = o.name
+    if o.data:
+        o.data.name = o.name
 K.export_glb(OUT)
-tris = sum(len(p.vertices) - 2 for o in bpy.context.scene.objects for p in o.data.polygons)
+tris = sum(len(p.vertices) - 2 for o in bpy.context.scene.objects if o.type == 'MESH' for p in o.data.polygons)
 print('EXPORTED', OUT, 'objects', len(bpy.context.scene.objects), 'tris', tris)

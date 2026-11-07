@@ -6,12 +6,14 @@
 </head><body>
 <script type="module">
 // Character viewer for GLB characters (Stage 1). URL params:
-//   model=<path>  view=full|face|three4|side|back|turn  yaw=<deg>  w,h via window size
+//   model=<path>  view=full|face|three4|side|back|turn|ref  yaw=<deg>  w,h via window size
+//   view=ref: reference-matched camera (web/lib/refcam.js); &win=head|full &K=<px per board px> &mask=1 (white head+hair silhouette on black)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { tuneCharacterMaterials, studioLights } from './lib/look.js';
+import { fitRefCamera, applyWindow } from './lib/refcam.js';
 
 const q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -34,8 +36,27 @@ ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
 
 const camera = new THREE.PerspectiveCamera(18, innerWidth / innerHeight, 0.05, 50);
 const controls = new OrbitControls(camera, renderer.domElement);
-new GLTFLoader().load(q.get('model') || '../assets/characters/naomi.glb', (g) => {
+const MASK = q.get('mask') === '1';
+const MASK_GROUPS = new Set(['head', 'ear', 'face', 'hair', 'bun', 'curl']);
+new GLTFLoader().load(q.get('model') || '../assets/characters/naomi.glb', async (g) => {
   const root = g.scene; tuneCharacterMaterials(root, renderer);
+  if (q.get('view') === 'ref') {
+    const ref = await (await fetch('../refs/naomi_landmarks.json')).json();
+    const K = +(q.get('K') || 4);
+    if (MASK) {
+      const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      root.traverse((o) => { if (o.isMesh) { if (MASK_GROUPS.has((o.userData || {}).ll_group)) o.material = white; else o.visible = false; } });
+      scene.background = new THREE.Color(0x000000); scene.environment = null; renderer.toneMapping = THREE.NoToneMapping; ground.visible = false;
+    }
+    scene.add(root);
+    const fit = fitRefCamera(root, camera, ref, K);
+    const [w, h] = applyWindow(camera, fit, q.get('win') || 'head');
+    renderer.setSize(w, h, false); renderer.domElement.style.width = w + 'px'; renderer.domElement.style.height = h + 'px';
+    window.MEASURE = fit;
+    renderer.render(scene, camera);
+    requestAnimationFrame(() => { renderer.render(scene, camera); window.READY = true; });
+    return;
+  }
   root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   root.rotation.y = THREE.MathUtils.degToRad(+(q.get('yaw') || 0));
   scene.add(root);
