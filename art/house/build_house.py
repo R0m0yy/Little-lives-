@@ -9,6 +9,7 @@ Room lights are exported as empties named  Light_<room>  (Three.js adds PointLig
 import math, os, sys, random
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 import bpy, bmesh
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mathutils import Vector as V, Matrix
 import meshkit as K
 import textures as TX
@@ -524,7 +525,11 @@ def stair(sid, axis, s0, s1, z0, z1, a0, a1, n=10, mat='woodLight', room='', hea
     h0 = s0 + L * frac
     bot = (s0, (a0 + a1) / 2, z0) if axis == 'x' else ((a0 + a1) / 2, s0, z0)
     top = (s1, (a0 + a1) / 2, z1) if axis == 'x' else ((a0 + a1) / 2, s1, z1)
-    STAIRS.append(dict(id=sid, bottom=bot, top=top, axis=axis, n=n))
+    if axis == 'x':
+        appr = (s0 + 0.12 * (1 if L > 0 else -1), a0 - 0.21, z0); land = (s1 + 0.26 * (1 if L > 0 else -1), (a0 + a1) / 2, z1)
+    else:
+        appr = (a0 - 0.21, s0 + 0.12 * (1 if L > 0 else -1), z0); land = ((a0 + a1) / 2, s1 + 0.26 * (1 if L > 0 else -1), z1)
+    STAIRS.append(dict(id=sid, bottom=bot, top=top, axis=axis, n=n, approach=appr, landing=land, room=room))
     marker(f'Stair_{sid}', V(bot), ll_type='stair', top_x=top[0], top_y=top[1], top_z=top[2], room=room)
     return (min(h0, s1), max(h0, s1))
 
@@ -548,8 +553,8 @@ h = stair('S2', 'x', ms, me, F2, F3, SY0, SY1, room='sitting'); holes[2].append(
 # attic flight (steep): centre bay back strip, arrives under the centre gable ridge
 h = stair('S3', 'x', ca + 0.02, XGC + 0.40, F3, F4, SY0, SY1, n=10, room='study'); holes[3].append((h[0], h[1], SY0, SY1))
 # loft flight: Laila's room, right wall, back (bottom) -> front (top)
-ra, rb = XI[2][1] - 0.52, XI[2][1] - 0.02
-h = stair('S4', 'y', YB - 0.20, 0.62, F3, F4, ra, rb, n=10, room='laila'); holes[3].append((ra, rb, h[0], h[1]))
+ra, rb = XAR - 0.62, XAR - 0.12   # round 21: inside the loft span (was x 2.83-3.33, landing under the hip roof)
+h = stair('S4', 'y', YB - 0.30, 0.62, F3, F4, ra, rb, n=11, room='laila'); holes[3].append((ra, rb, h[0], h[1]))
 slab_with_holes('floorF1', F1, POSTS[0] - 0.16, POSTS[3] + 0.16, 0, D, [], M['floor'])
 for lvl, z in ((1, F2), (2, F3), (3, F4)):
     slab_with_holes(f'floorF{lvl + 1}', z, POSTS[0] - 0.16, POSTS[3] + 0.16, 0, D, holes[lvl], M['floor'], M['ceil'])
@@ -985,10 +990,10 @@ place(armchair, cxl - 0.72, 1.28, z, math.pi - 0.45, room='living'); place(armch
 place(sofa, xa0 + 0.27, 1.15, z, math.pi / 2, room='living'); place(table, cxl, 1.05, z, room='living', w=0.5, l=0.4, h=0.32)
 rug(cxl, 1.2, z, 1.6, 1.3); place(lamp, xa0 + 0.25, YB - 0.3, z, room='living', h=0.9); place(plant, xa1 - 0.25, YB - 0.3, z, room='living')
 xc0, xc1 = XI[1]
-place(table, 0.02, 1.15, z, room='dining', w=0.8, l=0.55, h=0.62, cloth=True)
+place(table, 0.02, 1.0, z, room='dining', w=0.8, l=0.55, h=0.62, cloth=True)   # round 21: forward (stair foot clear)
 for dx in (-0.2, 0.22):
-    place(chair, dx, 0.8, z, math.pi, room='dining'); place(chair, dx, 1.52, z, 0.0, room='dining')
-place(dresser, xc1 - 0.19, 1.35, z, -math.pi / 2, room='dining'); place(glass_cabinet, xc0 + 0.18, 1.38, z, math.pi / 2, room='dining');   # left partition, clear of stair S1 and the door chandelier(0.02, 1.15, CEIL[0]); rug(0.02, 1.15, z, 1.3, 1.1)
+    place(chair, dx, 0.64, z, math.pi, room='dining'); place(chair, dx, 1.36, z, 0.0, room='dining')
+place(dresser, xc1 - 0.19, 1.35, z, -math.pi / 2, room='dining'); place(glass_cabinet, xc0 + 0.18, 1.38, z, math.pi / 2, room='dining');   # left partition, clear of stair S1 and the door chandelier(0.02, 1.0, CEIL[0]); rug(0.02, 1.0, z, 1.3, 1.1)
 xk0, xk1 = XI[2]
 place(counter_sink, xk0 + 0.62, YB - 0.27, z, room='kitchen', w=1.05); place(range_stove, xk1 - 0.45, YB - 0.27, z, room='kitchen')
 place(icebox, xk1 - 0.25, 1.2, z, -math.pi / 2, room='kitchen'); place(table, xk0 + 0.75, 1.15, z, room='kitchen', w=0.6, l=0.45, h=0.62)
@@ -1010,8 +1015,8 @@ place(chair, cxl + 0.45, YB - 0.62, z, math.pi, room='elias'); place(bookshelf, 
 place(lamp, cxl + 0.7, YB - 0.22, z + 0.62, room='elias', h=0.35); window(cxl + 0.45, z + 0.95, 0.5, 0.5, YB - 0.01); rug(cxl, 1.1, z, 1.2, 0.9)
 place(desk, 0.1, 1.15, z, room='study'); place(glass_cabinet, XI[1][1] - 0.2, 1.25, z, -math.pi / 2, room='study', w=0.55, h=1.3); place(chair, 0.1, 1.5, z, 0.0, room='study'); place(globe, 0.72, 1.6, z, room='study')
 bx('study_shelf', (0.55, YB - 0.1, z + 1.25), (0.8, 0.18, 0.03), M['wood'], 0.005); rug(0.1, 1.0, z, 1.2, 0.9); chandelier(0.02, 1.0, CEIL[2])
-place(small_bed, xk0 + 0.4, YB - 0.56, z, room='laila', w=0.6, l=1.08, quilt='rose'); place(toy_chest, xk0 + 1.05, YB - 0.2, z, room='laila')
-place(toy_dollhouse, xk1 - 0.78, 1.3, z, room='laila'); rug(xk0 + 0.6, 0.95, z, 0.9, 0.7); window(xk0 + 0.4, z + 0.95, 0.45, 0.5, YB - 0.01)
+place(small_bed, xk0 + 0.4, YB - 0.56, z, room='laila', w=0.6, l=1.08, quilt='rose'); place(toy_chest, xk0 + 0.85, 1.05, z, room='laila')
+place(toy_dollhouse, xk1 - 0.22, 1.3, z, -math.pi / 2, room='laila'); rug(xk0 + 0.6, 0.95, z, 0.9, 0.7); window(xk0 + 0.4, z + 0.95, 0.45, 0.5, YB - 0.01)
 place(lamp, xk0 + 0.95, YB - 0.2, z + 0.36, room='laila', h=0.35)
 z = F4
 place(chair, gxC - 0.25, 0.75, z, 0.0, room='attic_c'); place(plant, gxC + 0.35, 0.55, z, room='attic_c', s=0.7); rug(gxC, 0.9, z, 0.8, 0.8)
@@ -1110,13 +1115,13 @@ teaset(cxl, 1.05, z + 0.32); back_picture(xa0 + 0.35, z + 1.25, 0.26, 0.32); sco
 back_picture(xa1 - 0.3, z + 1.3, 0.24, 0.3)
 # dining
 z = F1
-lathe_at('fruit_bowl', 0.02, 1.15, [(0.07, 0.07, z + 0.70), (0.06, 0.06, z + 0.67), (0.03, 0.03, z + 0.645), (0.0, 0.0, z + 0.645)], nu=12, mat=M['china'])
+lathe_at('fruit_bowl', 0.02, 1.0, [(0.07, 0.07, z + 0.70), (0.06, 0.06, z + 0.67), (0.03, 0.03, z + 0.645), (0.0, 0.0, z + 0.645)], nu=12, mat=M['china'])
 for k in range(5):
-    K.ellipsoid('fruit', V((0.02 + 0.03 * math.cos(k * 1.3), 1.15 + 0.03 * math.sin(k * 1.3), z + 0.70)), (0.022, 0.022, 0.022), mat=M['fruit'] if k % 2 else M['leaf'], nu=8, nv=6)
+    K.ellipsoid('fruit', V((0.02 + 0.03 * math.cos(k * 1.3), 1.0 + 0.03 * math.sin(k * 1.3), z + 0.70)), (0.022, 0.022, 0.022), mat=M['fruit'] if k % 2 else M['leaf'], nu=8, nv=6)
 for dx in (-0.2, 0.22):
-    for dy in (0.9, 1.4):
+    for dy in (0.77, 1.23):
         cyl('placeplate', (dx, dy, z + 0.645), 0.055, 0.008, M['china'], 14)
-candlestick(-0.22, 1.15, z + 0.645); candlestick(0.26, 1.15, z + 0.645)
+candlestick(-0.22, 1.0, z + 0.645); candlestick(0.26, 1.0, z + 0.645)
 back_picture(xc0 + 0.3, z + 1.3, 0.26, 0.3); sconce(xc1 - 0.25, z + 1.1)
 # kitchen
 pans(xk0 + 0.62, F1 + 1.75); bx('bread', (xk0 + 0.75, 1.15, F1 + 0.66), (0.14, 0.07, 0.05), M['bread'], 0.02)
@@ -1149,7 +1154,7 @@ back_picture(-0.35, z + 1.3, 0.3, 0.36)
 # laila
 z = F3
 doll(xk0 + 0.3, YB - 0.4, z + 0.45, 'toyY'); doll(xk0 + 0.5, YB - 0.42, z + 0.45, 'toyB'); toy_blocks(xk0 + 0.8, 0.7, z)
-doll(xk1 - 0.78, 1.3, z + 0.4, 'toyR'); back_picture(xk0 + 1.0, z + 1.25, 0.24, 0.24)
+doll(xk1 - 0.22, 1.05, z + 0.0, 'toyR'); back_picture(xk0 + 1.0, z + 1.25, 0.24, 0.24)
 # attic: ceiling lining under the centre gable roof (the slate underside showed through), boxes, cushions
 for sgn in (-1, 1):
     xe = ACX0 if sgn < 0 else ACX1
@@ -1391,8 +1396,9 @@ for d in DOORS:
     for side, rr in ((-1, a), (1, b)):
         add_ip(rr, f"door_{d['id']}", 0, 'open', V((d['x'] + side * 0.35, d['y'], d['z'])), V((-side, 0, 0)), V((d['x'], d['y'], d['z'] + 0.6)), {'door': f"Door_{d['id']}"})
 for st in STAIRS:
-    add_ip(st.get('room', ''), f"stair_{st['id']}", 0, 'climb', V(st['bottom']), V((1, 0, 0)) if st['axis'] == 'x' else V((0, -1, 0)), V(st['top']),
-           {'stair': st['id'], 'to_z': st['top'][2]})
+    fwd = V((1, 0, 0)) if st['axis'] == 'x' else V((0, -1, 0))
+    add_ip(st.get('room', ''), f"stair_{st['id']}", 0, 'climb', V(st['approach']), fwd, V(st['top']), {'stair': st['id'], 'to_z': st['top'][2]})
+    add_ip('', f"stair_{st['id']}", 1, 'arrive', V(st['landing']), fwd, V(st['top']), {'stair': st['id'], 'from_z': st['bottom'][2]})
 import json as _json
 HOUSE_DATA = dict(
     _doc='Little Lives house gameplay data (round 20+). Coordinates are Blender (Z up, -Y = open front, units = Naomi 1.0 tall). '
@@ -1402,11 +1408,25 @@ HOUSE_DATA = dict(
     floors=[dict(level=i, z=round(z, 4)) for i, z in enumerate(FLOORS)],
     doors=[dict(id=f"Door_{d['id']}", rooms=list(d['rooms']), hinge=[round(d['x'], 4), round(DY1, 4), round(d['z'], 4)], width=round(DY1 - DY0, 3), height=DH)
            for d in DOORS],
-    stairs=[dict(id=st['id'], bottom=[round(v, 4) for v in st['bottom']], top=[round(v, 4) for v in st['top']], axis=st['axis'], steps=st['n']) for st in STAIRS],
+    stairs=[dict(id=st['id'], bottom=[round(v, 4) for v in st['bottom']], top=[round(v, 4) for v in st['top']], approach=[round(v, 4) for v in st['approach']],
+                 landing=[round(v, 4) for v in st['landing']], axis=st['axis'], steps=st['n']) for st in STAIRS],
     lights=sorted({o.name for o in bpy.context.scene.objects if o.name.startswith('Light_')}),
     switches=SWITCHES,
     interactions=INTERACTIONS,
 )
+import nav_bake as NAV
+_lv = []
+for lvl in range(3):
+    _lv.append(dict(level=lvl, z=FLOORS[lvl], rects=[(XI[b][0] + 0.02, XI[b][1] - 0.02, 0.02, YB - 0.02) for b in range(3)]
+                    + [(px - 0.07, px + 0.07, DY0 + 0.01, DY1 - 0.01) for px in (POSTS[1], POSTS[2])], holes=holes.get(lvl, [])))   # doorways
+_lv.append(dict(level=3, z=F4, rects=[(ACX0 + 0.03, ACX1 - 0.03, 0.05, YB - 0.05), (LX0 + 0.04, LX1 - 0.04, 0.05, LY1 - 0.02)], holes=holes[3]))
+HOUSE_DATA['nav'], NAV_REPORT = NAV.bake(_lv, INTERACTIONS, STAIRS)
+for r in NAV_REPORT['levels']:
+    print('NAV level', r['level'], 'walkable', r['walkable_cells'], 'components', r['components'], 'main', r['main_size'], 'ips', r['interactions'], 'UNREACHABLE', r['unreachable'])
+_nav_png = []
+for r, L in zip(NAV_REPORT['levels'], HOUSE_DATA['nav']['levels']):
+    _nav_png.append((r.pop('_walk'), r.pop('_comp'), r.pop('_main'), L))
+HOUSE_DATA['nav_report'] = NAV_REPORT
 _counts = {}
 for i in INTERACTIONS:
     _counts[i['kind']] = _counts.get(i['kind'], 0) + 1
@@ -1481,6 +1501,32 @@ bpy.context.view_layer.objects.active = static[0]
 bpy.ops.object.join()
 house_ob = bpy.context.view_layer.objects.active
 house_ob.name = 'House_static'; house_ob.data.name = 'House_static'
+from PIL import Image as _I, ImageDraw as _D
+_maps = []
+for walk, comp, main, L in _nav_png:
+    ny, nx = walk.shape; S = 4
+    im = _I.new('RGB', (nx * S, ny * S), (40, 30, 34)); px = im.load()
+    for j in range(ny):
+        for i in range(nx):
+            c = (232, 214, 170) if comp[j, i] == main else (120, 160, 220) if walk[j, i] else (60, 46, 50)
+            for a in range(S):
+                for b in range(S):
+                    px[i * S + a, (ny - 1 - j) * S + b] = c
+    d = _D.Draw(im)
+    KC = dict(sit=(64, 160, 255), sleep=(144, 96, 255), open=(64, 224, 112), use=(255, 208, 64), switch=(255, 80, 80), bathe=(64, 224, 224), climb=(255, 255, 255), arrive=(255, 255, 255))
+    for ip in INTERACTIONS:
+        if abs(ip['stand'][2] - L['z']) > 0.3:
+            continue
+        X = (ip['stand'][0] - L['origin'][0]) / L['cell'] * S; Y = (ny - (ip['stand'][1] - L['origin'][1]) / L['cell']) * S
+        col = KC.get(ip['kind'], (255, 0, 255)); r = 7
+        d.ellipse((X - r, Y - r, X + r, Y + r), fill=col if ip.get('reachable') else None, outline=(255, 0, 0) if not ip.get('reachable') else (0, 0, 0), width=3 if not ip.get('reachable') else 1)
+    d.text((6, 4), f"level {L['level']}  z={L['z']:.2f}  (open front at bottom)", fill=(255, 255, 255))
+    _maps.append(im)
+_W = max(m.width for m in _maps); _H = sum(m.height + 8 for m in _maps)
+_nav_img = _I.new('RGB', (_W, _H), (20, 18, 22)); _y = 0
+for m in _maps[::-1]:
+    _nav_img.paste(m, (0, _y)); _y += m.height + 8
+_nav_img.save(os.path.join(ROOT, 'qa/house3d/nav_latest.png'))
 K.export_glb(OUT)
 open(OUT.replace('.glb', '_data.json'), 'w').write(_json.dumps(HOUSE_DATA, indent=1))
 tris = sum(len(p.vertices) - 2 for o in bpy.context.scene.objects if o.data for p in o.data.polygons)
