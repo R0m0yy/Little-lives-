@@ -65,6 +65,7 @@ M = dict(
     bulb=K.material('lamp_bulb', base='#fff0c0', emission='#ffd890', emission_strength=12.0),
     fire=K.material('fire', base='#ff9a30', emission='#ff8a20', emission_strength=14.0),
     glass=K.material('window_glass', base='#3a4a66', rough=0.1, emission='#3a5578', emission_strength=0.6),
+    glassWarm=K.material('window_warm', base='#ffd9a0', rough=0.08, emission='#ffb860', emission_strength=2.2),   # round 13: lit from inside
     stone=K.material('stone_plinth', base='#cfc3ae', rough=0.8),
     beds=K.material('garden_beds', tex=T['beds'], rough=0.9),
     leaf=K.material('plant_leaf', base='#4a7a3c', rough=0.7),
@@ -245,6 +246,27 @@ def cresting_keep(P=0.16, Hc=0.17):
             return True
         return False
     return keep
+
+
+def glazed(name, x0, x1, y, z0, z1, cols=3, rows=2, curtains=True):
+    """Lit multi-pane window in the plane y (warm glass, mullion grid, sill, header, half curtains), round 13."""
+    bx(f'{name}_glass', ((x0 + x1) / 2, y + 0.01, (z0 + z1) / 2), (x1 - x0, 0.015, z1 - z0), M['glassWarm'], 0)
+    for k in range(cols + 1):
+        xx = x0 + (x1 - x0) * k / cols
+        bx(f'{name}_mull', (xx, y - 0.012, (z0 + z1) / 2), (0.035 if 0 < k < cols else 0.06, 0.04, z1 - z0 + 0.04), M['trim'], 0.004)
+    for k in range(rows + 1):
+        zz = z0 + (z1 - z0) * k / rows
+        bx(f'{name}_tran', ((x0 + x1) / 2, y - 0.012, zz), (x1 - x0 + 0.04, 0.04, 0.035 if 0 < k < rows else 0.06), M['trim'], 0.004)
+    bx(f'{name}_sill', ((x0 + x1) / 2, y - 0.04, z0 - 0.03), (x1 - x0 + 0.12, 0.1, 0.04), M['trim'], 0.008)
+    bx(f'{name}_head', ((x0 + x1) / 2, y - 0.04, z1 + 0.04), (x1 - x0 + 0.12, 0.08, 0.06), M['trim'], 0.008)
+    if curtains:
+        for sx, xe in ((1, x0), (-1, x1)):
+            bx(f'{name}_curtain', (xe + sx * 0.06, y + 0.04, (z0 + z1) / 2 + 0.03), (0.1, 0.03, z1 - z0 + 0.06), M['rose'], 0.015)
+
+
+def turned_baluster(name, x, y, z0, h, r=0.022):
+    prof = [(0.70, 1.0), (0.75, 0.96), (0.45, 0.92), (0.40, 0.80), (0.75, 0.62), (0.95, 0.45), (0.70, 0.30), (0.45, 0.22), (0.80, 0.10), (0.90, 0.0)]
+    return K.lathe(name, [(r * a, r * a, z0 + h * t) for a, t in prof], nu=10, mat=M['trim'])
 
 
 # ------------------------------------------------------------------ furniture kit
@@ -794,13 +816,17 @@ for side in (-1, 1):
     box('wingFloor', x0, x1, 0.0, wd, F1 - 0.08, F1, M['floor'], 0, 1.2)
     box('wingBack', x0, x1, wd - 0.06, wd, F1, F3, M['siding'], 0, 0.8)
     box('wingSide', (x0 if side < 0 else x1 - 0.06), (x0 + 0.06 if side < 0 else x1), 0, wd, F1, F2 - 0.1, M['siding'], 0, 0.8)
-    # porch railing + posts
+    # round 13: lit ground-floor bay — glazed front + outer side above a turned-baluster railing
     for k in range(9):
         xx = x0 + 0.08 + (x1 - x0 - 0.16) * k / 8
-        bx('baluster', (xx, 0.05, F1 + 0.25), (0.035, 0.035, 0.45), M['trim'], 0.005)
+        turned_baluster('baluster', xx, 0.05, F1 + 0.04, 0.44)
     bx('rail', ((x0 + x1) / 2, 0.05, F1 + 0.5), (x1 - x0, 0.07, 0.05), M['trim'], 0.01)
+    bx('railBase', ((x0 + x1) / 2, 0.05, F1 + 0.03), (x1 - x0, 0.06, 0.04), M['trim'], 0.005)
     for xx in (x0 + 0.05, x1 - 0.05):
         bx('wingPost', (xx, 0.05, (F1 + F2) / 2), (0.1, 0.1, F2 - F1), M['trim'], 0.01)
+    glazed('wingGF', x0 + 0.12, x1 - 0.12, 0.18, F1 + 0.62, F2 - 0.22, cols=2, rows=3)
+    xs = x0 + 0.03 if side < 0 else x1 - 0.03
+    bx('wingSideGlass', (xs, 0.75, (F1 + 0.62 + F2 - 0.22) / 2), (0.015, 0.9, F2 - 0.84 - F1), M['glassWarm'], 0)
     bx('wingBench', ((x0 + x1) / 2, wd - 0.35, F1 + 0.25), (x1 - x0 - 0.3, 0.35, 0.08), M['woodLight'], 0.01)
     plant((x0 + x1) / 2, wd - 0.35, F1 + 0.3, 0.8)
     empty(f'Light_wing{side}', ((x0 + x1) / 2, 0.7, F2 - 0.4))
@@ -811,8 +837,7 @@ for side in (-1, 1):
          M['slate'], 0.05, 1.0)
     # upper bay with window
     box('bayFront', x0, x1, -0.02, 0.06, F2 + 0.5, F3, M['siding'], 0, 0.8)
-    bx('bayWin', ((x0 + x1) / 2, -0.04, (F2 + F3) / 2 + 0.25), (x1 - x0 - 0.3, 0.03, 0.8), M['glass'], 0.0)
-    bx('bayWinFrame', ((x0 + x1) / 2, -0.055, (F2 + F3) / 2 + 0.25), (0.05, 0.03, 0.85), M['trim'], 0.0)
+    glazed('wingBay', x0 + 0.14, x1 - 0.14, -0.04, F2 + 0.72, F3 - 0.16, cols=2, rows=2)   # round 13: lit bay window
     box('bayWall', (x0 if side < 0 else x1 - 0.06), (x0 + 0.06 if side < 0 else x1), 0, wd, F2 + 0.5, F3, M['siding'], 0, 0.8)
     empty(f'Light_bay{side}', ((x0 + x1) / 2, 0.6, F3 - 0.5))
     xo_up = X(1033) if side < 0 else X(1457)
