@@ -37,6 +37,7 @@ K.reset()
 
 # ------------------------------------------------------------------ textures
 TX.floral(os.path.join(TEX, 'floral.png'))
+TX.floral(os.path.join(TEX, 'apron.png'), seed=9, base=(232, 224, 218), density=0.95)   # cooler, lighter apron print
 TX.lace(os.path.join(TEX, 'lace.png'))
 TX.trim(os.path.join(TEX, 'trim.png'))
 TX.weave(os.path.join(TEX, 'weave.png'))
@@ -57,12 +58,13 @@ M = dict(
     hairCap=K.material('hair_cap', base='#060304', rough=0.6, aniso=0.2, spec=0.35),
     bun=K.material('hair_bun', base='#3a2218', rough=0.48, aniso=0.3, spec=0.45, sheen=0.4, sheen_tint='#c09070', sheen_rough=0.45),
     blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.85, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
+    apron=K.material('fabric_apron', tex=os.path.join(TEX, 'apron.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     lace=K.material('fabric_lace', tex=os.path.join(TEX, 'lace.png'), rough=0.85, sheen=0.5),
     trim=K.material('fabric_trim', tex=os.path.join(TEX, 'trim.png'), rough=0.7, sheen=0.4),
     under=K.material('fabric_under', base='#6e2622', rough=0.7, sheen=0.6, sheen_tint='#ffb0a0'),
     tights=K.material('fabric_tights', base='#3e1d10', rough=0.6, sheen=0.5, sheen_tint='#c08060'),
-    shoe=K.material('leather_shoe', base='#2c1209', rough=0.32, coat=0.6, coat_rough=0.2),
+    shoe=K.material('leather_shoe', base='#4a2212', rough=0.34, coat=0.6, coat_rough=0.2),
     pearl=K.material('pearl', base='#f4ece0', rough=0.25, coat=0.8),
     gold=K.material('metal_gold', base='#e0b060', metal=1.0, rough=0.25),
 )
@@ -509,25 +511,25 @@ for sg in (1, -1):
     K.union(f'Arm{sg}', arm_parts(sg), voxel=0.0011, smooth_iter=3, smooth_factor=0.5, decimate=0.18, mat=M['skinPlain'])
 legs = []
 for sg in (1, -1):
-    legs.append(K.capsule('leg', V((sg * 0.050, 0.0, 0.26)), V((sg * 0.043, 0.0, 0.05)), 0.026, 0.017))
+    legs.append(K.capsule('leg', V((sg * 0.050, 0.0, 0.26)), V((sg * 0.047, 0.0, 0.05)), 0.026, 0.018))
 K.union('Legs', legs, voxel=0.003, smooth_iter=4, decimate=0.3, mat=M['tights'])
 K.subsurf(K.capsule('Neck', V((0, 0.012, 0.715)), V((0, 0.012, 0.620)), 0.040, 0.044), 0)
 bpy.data.objects['Neck'].data.materials.append(M['skinPlain'])
 
 # shoes: rounded toe Mary Janes
 for sg in (1, -1):
-    fc = V((sg * 0.043, -0.012, 0.021))
-    parts = [K.ellipsoid('toe', fc + V((0, -0.016, -0.001)), (0.022, 0.034, 0.020)),
-             K.ellipsoid('heel', fc + V((0, 0.018, 0.0)), (0.019, 0.022, 0.021)),
-             K.capsule('ank', V((sg * 0.043, 0.004, 0.025)), V((sg * 0.043, 0.004, 0.05)), 0.018, 0.0175)]
+    fc = V((sg * 0.047, -0.016, 0.026))   # round 20: ~30% larger Mary Janes
+    parts = [K.ellipsoid('toe', fc + V((0, -0.022, -0.001)), (0.0285, 0.044, 0.025)),
+             K.ellipsoid('heel', fc + V((0, 0.022, 0.0)), (0.025, 0.028, 0.026)),
+             K.capsule('ank', V((sg * 0.047, 0.004, 0.03)), V((sg * 0.047, 0.004, 0.06)), 0.021, 0.019)]
     sh = K.union(f'Shoe{sg}', parts, voxel=0.0018, smooth_iter=6, decimate=0.3, mat=M['shoe'])
     for v in sh.data.vertices:
         if v.co.z < 0.004:
             v.co.z = 0.0
     # strap
-    sp = [V((sg * 0.043 + math.cos(a) * 0.0215, -0.006 + math.sin(a) * 0.004, 0.026 + math.sin(a) * 0.0 + 0.012 * math.sin(a * 0.5 + 0.8)))
+    sp = [V((sg * 0.047 + math.cos(a) * 0.0278, -0.010 + math.sin(a) * 0.005, 0.034 + 0.015 * math.sin(a * 0.5 + 0.8)))
           for a in [math.pi * (i / 15) for i in range(16)]]
-    K.sweep(f'ShoeStrap{sg}', sp, lambda t: (0.0035, 0.0018), nprof=8, mat=M['shoe'], up=V((0, -1, 0)))
+    K.sweep(f'ShoeStrap{sg}', sp, lambda t: (0.0042, 0.0021), nprof=8, mat=M['shoe'], up=V((0, -1, 0)))
 
 # ================================================================== CLOTHES
 # blouse torso
@@ -632,7 +634,7 @@ def skirt_r(t):
     return (K.lerp(rw[0], rh[0], k), K.lerp(rw[1], rh[1], k))
 
 
-Z0, Z1 = 0.478, P['hem_z'] + 0.03
+Z0, Z1 = 0.478, P['hem_z'] + 0.052   # round 20: wider lace hem band
 NS = 36
 fold_ph = [rnd.random() * K.TAU for _ in range(4)]
 
@@ -652,6 +654,35 @@ def lace_band(u, v):
     s = fold(1.0, th) * (1.012 + 0.03 * v)
     return V((math.sin(th) * rx * s, -math.cos(th) * ry * s, z))
 K.subsurf(K.surface('Lace', lace_band, 192, 6, wrap_u=True, mat=M['lace'], uv=lambda i, j: (j / 192 * 4, i / 5)), 1)
+# apron: front panel over the skirt (waist -> just above the hem), follows the skirt folds, lace-edged hem
+AP_TH = 1.05          # half-angle of the front panel (radians)
+AP_Z1 = P['hem_z'] + 0.07
+def apron(u, v):
+    th = (u * 2 - 1) * AP_TH
+    z = K.lerp(Z0 - 0.004, AP_Z1, v)
+    t = (Z0 - z) / (Z0 - Z1)
+    rx, ry = skirt_r(min(1.0, t))
+    s = fold(min(1.0, t), th) * (1.018 + 0.010 * t)
+    return V((math.sin(th) * rx * s, -math.cos(th) * ry * s, z))
+K.subsurf(K.surface('Apron', apron, 72, 30, mat=M['apron'], uv=lambda i, j: (j / 71 * 1.6, i / 29 * 1.1)), 1)
+def apron_lace(u, v):
+    th = (u * 2 - 1) * AP_TH
+    z = K.lerp(AP_Z1 + 0.012, AP_Z1 - 0.008 - 0.004 * abs(math.sin(th * 16)) * v, v)
+    t = min(1.0, (Z0 - z) / (Z0 - Z1))
+    rx, ry = skirt_r(t)
+    s = fold(t, th) * (1.032 + 0.012 * t)
+    return V((math.sin(th) * rx * s, -math.cos(th) * ry * s, z))
+K.subsurf(K.surface('ApronLace', apron_lace, 96, 5, mat=M['lace'], uv=lambda i, j: (j / 95 * 2, i / 4)), 1)
+for sgn in (1, -1):   # thin trim down each side edge of the apron
+    ep = []
+    for k in range(30):
+        z = K.lerp(Z0 - 0.004, AP_Z1, k / 29)
+        t = (Z0 - z) / (Z0 - Z1)
+        rx, ry = skirt_r(min(1.0, t))
+        sc = fold(min(1.0, t), sgn * AP_TH) * (1.026 + 0.010 * t)
+        ep.append(V((math.sin(sgn * AP_TH) * rx * sc, -math.cos(sgn * AP_TH) * ry * sc, z)))
+    K.sweep(f'ApronEdge{sgn}', ep, lambda t: (0.0022, 0.0028), nprof=8, mat=M['trim'])
+
 # underskirt peeking below
 def under(u, v):
     th = u * K.TAU
@@ -676,7 +707,7 @@ for o in list(bpy.context.scene.objects):   # weight shift: her left foot steps 
     if o.name.startswith(('Shoe1', 'ShoeStrap1')):
         o.data.transform(Matrix.Translation(V((0.004, -0.022, 0))))
     elif o.name.startswith(('Shoe-1', 'ShoeStrap-1')):
-        fp = V((-0.043, 0.0, 0))
+        fp = V((-0.047, 0.0, 0))
         o.data.transform(Matrix.Translation(fp) @ Matrix.Rotation(math.radians(-16), 4, 'Z') @ Matrix.Translation(-fp))
 
 # ------------------------------------------------------------------ export

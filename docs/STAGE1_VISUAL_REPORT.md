@@ -48,6 +48,17 @@ Side-by-sides are in `qa/naomi3d/round_XX.png` and `qa/house3d/round_XX.png`. **
 
 Triangles rose to ~580k (GLB ~12 MB); a decimated game LOD is still needed. No rig, no other family members, no gameplay — waiting for owner approval.
 
+## Naomi rounds 16–20 (owner list, 2026-11-07; "a" files = first attempt kept for comparison)
+| Round | Fix | Result in the side-by-side |
+|---|---|---|
+| 16 hair | ~150 thin near-round tapered strands (+22-strand swoop) over a dark cap, anisotropic gloss for fine highlights; 90 small loose ringlets; two loose face-framing curls | Reads as fine combed hair on top with fine highlight lines. 16a–c had flat card strands that shingled/feathered at the left temple → tucked tips, rounder strands. **Still:** left side still slightly choppy; from the side the cap ends in a flat black edge behind the ear |
+| 17 eyes | Eyes 1 cm higher, 6 mm closer, aperture opened (rounder); blue-grey iris ring; thicker lash line + one outer flick; shallower socket + smaller lower lid shell | Under-eye dark band gone; blue-grey ring visible. **Still:** outer flick is barely visible at full-body scale; a little sclera shows above the iris (board's upper lid overlaps it) |
+| 18 head | Head turn/tilt removed (2° nod only), renders at 10° so the face reads symmetric; fuller apple-cheek bumps | Symmetric face, rounder cheeks |
+| 19 arms | Elbows back and softly bent, forearms forward; fingers ~25% shorter, closer, curled inward; thumb tucked (`round_19_detail.png`) | Short relaxed hands, gentle bend visible in side view. **Still:** wrist crease; bend is subtle from the front |
+| 20 apron/shoes | Apron front panel (±60°, follows skirt folds) in a cooler lighter print with lace hem + side trim; skirt lace hem band ~70% wider; shoes ~30% larger, warmer brown | Apron layer and broad hem band read like the board; shoes now visible at full size. **Still:** apron side trim barely visible |
+
+Asset now ~600k triangles (GLB ~13 MB). Still static (no rig). Not approved; family/gameplay not started.
+
 ## House — 6 rounds
 1 first blockout · 2 roof missing (only edge-on gable planes) → full-width slate front slope, attic opening ·
 3 interiors pale/blown → amber light, golden papers, darker floors · 4 thin trim → chunky posts, spindle friezes, flowers, deeper wing roofs ·
