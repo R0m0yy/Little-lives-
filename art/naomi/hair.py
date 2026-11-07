@@ -13,7 +13,7 @@ from mathutils import Vector as V
 import head as HD
 
 P = dict(
-    bun=V((-0.182, 0.170, 0.846)), bun_r=(0.088, 0.086, 0.118),   # round 32: rounded chignon, lower and further back
+    bun=V((-0.170, 0.170, 0.860)), bun_r=(0.100, 0.098, 0.128),   # round 33: higher (bun top ~ crown height) and wider, like the board
     t_top=0.016, t_front=0.020, t_side=0.012, t_back=0.022,
 )
 
@@ -63,7 +63,7 @@ def thick(d):
     t = P['t_side'] + (P['t_top'] - P['t_side']) * max(0.0, d.z) ** 1.1
     t += (P['t_back'] - P['t_side']) * max(0.0, d.y) * 0.8 + (P['t_front'] - P['t_side']) * max(0.0, -d.y) * max(0.0, d.z)
     t += 0.012 * HD.gauss_ang(d, V((-0.55, 0.30, 0.78)), 0.45)     # dome peaks toward her right/back (board silhouette)
-    t += 0.030 * HD.gauss_ang(d, (BUN_DIR + V((0.25, -0.15, 0.55))).normalized(), 0.42)   # hair sweeps up into the bun
+    t += 0.040 * HD.gauss_ang(d, (BUN_DIR + V((0.25, -0.15, 0.65))).normalized(), 0.40)   # hair sweeps up into the bun (no notch)
     return t * groove(d)
 
 
