@@ -39,7 +39,7 @@ for name, fn, args in [
     ('wp_cream', TX.wallpaper, dict(base=(222, 186, 124), motif=(196, 156, 96), kind='floral', seed=4)),
     ('wp_blue', TX.wallpaper, dict(base=(176, 190, 196), motif=(150, 168, 178), kind='damask', seed=5)),
     ('planks', TX.planks, {}), ('slate', TX.slate, {}), ('siding', TX.siding, {}),
-    ('shingle', TX.siding, dict(base=(214, 204, 188), scallop=True)), ('beds', TX.flowerbed, {}),
+    ('shingle', TX.fishscale, {}), ('beds', TX.flowerbed, {}),   # round 10: real fish-scale shingles
 ]:
     p = os.path.join(TEX, name + '.png'); fn(p, **args); T[name] = p
 
@@ -160,6 +160,64 @@ def cyl(name, c, r, h, mat, seg=16, r2=None):
 
 def empty(name, p):
     e = bpy.data.objects.new(name, None); e.location = p; K.link(e); return e
+
+
+# ------------------------------------------------------------------ pierced fretwork (round 10)
+def pierced(name, origin, u_dir, v_dir, L, Hh, keep, cell=0.0145, thick=0.032, mat=None):
+    """Planar panel with real cut-outs: grid cells in (u, v) kept where keep(u, v); solidified along u x v."""
+    nu, nv = max(2, int(L / cell)), max(2, int(Hh / cell))
+    du, dv = L / nu, Hh / nv
+    bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
+    grid = {}
+    def vert(i, j):
+        if (i, j) not in grid:
+            grid[(i, j)] = bm.verts.new(origin + u_dir * (i * du) + v_dir * (j * dv))
+        return grid[(i, j)]
+    for i in range(nu):
+        for j in range(nv):
+            if keep((i + 0.5) * du, (j + 0.5) * dv):
+                f = bm.faces.new([vert(i, j), vert(i + 1, j), vert(i + 1, j + 1), vert(i, j + 1)])
+                for lp, (a, b) in zip(f.loops, [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]):
+                    lp[uvl].uv = (a * du * 2, b * dv * 2)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    ob = K.link(bpy.data.objects.new(name, me)); me.materials.append(mat or M['trim'])
+    sm = ob.modifiers.new('sol', 'SOLIDIFY'); sm.thickness = thick; sm.offset = 0.0
+    K.apply_mods(ob)
+    return ob
+
+
+def barge_keep(L, P=0.13, depth=0.17):
+    def keep(u, v):
+        if u < 0.04 or u > L - 0.04:
+            return v < 0.115
+        if v < 0.038:
+            return True
+        f = (u / P) % 1.0
+        ccx = (math.floor(u / P) + 0.5) * P
+        if math.hypot(u - ccx, v - 0.082) < 0.030:          # round piercing
+            return False
+        if math.hypot(u - math.floor(u / P + 0.5) * P, v - 0.072) < 0.013:   # small eyelet between
+            return False
+        return v < 0.118 + 0.048 * math.exp(-((f - 0.5) / 0.13) ** 2)      # scalloped edge with pendant drops
+    return keep
+
+
+def bargeboard(name, a, b, depth=0.17):
+    """Pierced bargeboard hanging below the roof edge from a to b (both in a y = const plane)."""
+    u = (b - a); L = u.length; u.normalize()
+    n1 = V((u.z, 0, -u.x)); n2 = -n1
+    v = n1 if n1.z < 0 else n2
+    return pierced(name, a, u, v, L, depth, barge_keep(L))
+
+
+def spandrel_keep(Wd, Hh):
+    def keep(u, v):
+        if math.hypot(u - Wd, v - Hh) < min(Wd, Hh) * 0.96:   # quarter-circle cut -> curved bracket
+            return False
+        if math.hypot(u - Wd * 0.28, v - Hh * 0.28) < 0.045:
+            return False
+        return True
+    return keep
 
 
 # ------------------------------------------------------------------ furniture kit
@@ -694,9 +752,8 @@ for fz in CEIL:
         for sgn in (-1, 1):
             if (i == 0 and sgn < 0) or (i == 3 and sgn > 0):
                 continue
-            pts = [(px, -0.04, fz + 0.1), (px + sgn * 0.42, -0.04, fz + 0.1), (px + sgn * 0.42, -0.04, fz + 0.04),
-                   (px + sgn * 0.12, -0.04, fz - 0.06), (px + sgn * 0.06, -0.04, fz - 0.3)]
-            poly('bracket', pts if sgn > 0 else pts[::-1], M['trim'], 0.03)
+            pierced('bracket', V((px + sgn * 0.11, -0.05, fz + 0.03)), V((sgn, 0, 0)), V((0, 0, -1)), 0.40, 0.30,
+                    spandrel_keep(0.40, 0.30), cell=0.012, thick=0.03)   # round 10: pierced spandrel
 # outer side walls (siding)
 for xs in (POSTS[0] - 0.1, POSTS[3] + 0.1):
     box('sideWall', xs - 0.06, xs + 0.06, 0, D, F1, F4, M['siding'], 0, 0.8)
@@ -738,6 +795,8 @@ for side in (-1, 1):
     pc = (x0 + x1) / 2
     pc = X(1058.3) if side < 0 else X(1445)
     poly('wingPediment', [(x0, -0.27, F3 - 0.05), (x1, -0.27, F3 - 0.05), (pc, -0.27, Z(772))], M['shingle'], 0.04, 0.5)
+    for e0 in (x0, x1):
+        bargeboard('wingBarge', V((pc, -0.29, Z(772) + 0.02)), V((e0, -0.29, F3 - 0.05)), depth=0.12)
     cyl('wingFinial', (pc, -0.25, Z(767)), 0.03, 0.22, M['trim'], 8, 0.01)
     K.ellipsoid('wingFinialBall', V((pc, -0.25, Z(763.5))), (0.035, 0.035, 0.035), mat=M['trim'], nu=8, nv=6)
 
@@ -792,16 +851,17 @@ for gx, hw, apex, tag in GABLES:
         corners = [(gx, -OV - 0.05, apex + 0.05), (e[0], -OV - 0.05, e[1]), (e[0], yb_, e[1]), (gx, yb_, apex + 0.05)]
         slab(f'gableRoof{tag}{sgn}', corners if sgn < 0 else corners[::-1], M['slate'], 0.06, 0.6)
     # shingled gable face, recessed a little
-    tri = [(gx - hw, -0.05, base), (gx + hw, -0.05, base), (gx, -0.05, apex - 0.05)]
+    GF = -OV - 0.02 if tag == 'L' else -0.05   # round 10: left gable face projects in front of the main slope
+    tri = [(gx - hw, GF, base), (gx + hw, GF, base), (gx, GF, apex - 0.05)]
     if tag == 'L':
         poly(f'gableFace{tag}', tri, M['shingle'], 0.05, 0.5)
         # arched attic window
         wx, wz = X(1137), Z(697)   # round 7: measured
-        bx('gWinGlass', (wx, -0.08, wz), (0.42, 0.02, 0.6), M['shade'], 0)
-        bx('gWinFrame', (wx, -0.1, wz - 0.32), (0.55, 0.06, 0.06), M['trim'], 0.01)
+        bx('gWinGlass', (wx, GF - 0.03, wz), (0.42, 0.02, 0.6), M['shade'], 0)
+        bx('gWinFrame', (wx, GF - 0.05, wz - 0.32), (0.55, 0.06, 0.06), M['trim'], 0.01)
         for dx in (-0.23, 0, 0.23):
-            bx('gWinBar', (wx + dx, -0.1, wz), (0.05, 0.05, 0.62), M['trim'], 0.005)
-        K.ellipsoid('gWinArch', V((wx, -0.1, wz + 0.3)), (0.28, 0.04, 0.12), mat=M['trim'], nu=16, nv=8)
+            bx('gWinBar', (wx + dx, GF - 0.05, wz), (0.05, 0.05, 0.62), M['trim'], 0.005)
+        K.ellipsoid('gWinArch', V((wx, GF - 0.05, wz + 0.3)), (0.28, 0.04, 0.12), mat=M['trim'], nu=16, nv=8)
         empty('Light_gableL', (wx, 0.5, wz))
     else:
         # centre gable is open: frame its opening with a shingled band above the room
@@ -813,14 +873,7 @@ for gx, hw, apex, tag in GABLES:
         a = V((gx, -OV - 0.1, apex + 0.08)); b = V((gx + sgn * (hw + 0.14), -OV - 0.1, base - 0.08))
         if tag == 'C' and sgn < 0:   # stop on the left gable's bargeboard
             b = a + (b - a) * ((a.x - X_VALLEY) / (a.x - b.x))
-        dvec = b - a; n = max(4, int(14 * dvec.length / 1.6))
-        for k in range(n):
-            p = a + dvec * ((k + 0.5) / n)
-            cyl('fret', (p.x, p.y, p.z - 0.07), 0.025, 0.12, M['trim'], 6)
-        L = dvec.length
-        ob = box('barge', -L / 2, L / 2, -0.03, 0.03, -0.06, 0.06, M['trim'], 0.01)
-        ob.rotation_euler = (0, -math.atan2(dvec.z, dvec.x), 0)
-        ob.location = (a + b) / 2
+        bargeboard(f'barge{tag}{sgn}', a, b)   # round 10: pierced fretwork
     fh = 0.40 if tag == 'L' else 0.15            # round 7: measured finial heights above the apex
     cyl('finial', (gx, -OV - 0.1, apex + fh * 0.45), 0.04, fh * 0.9, M['trim'], 8, 0.015)
     K.ellipsoid('finialBall', V((gx, -OV - 0.1, apex + fh - 0.05)), (0.05, 0.05, 0.05), mat=M['trim'], nu=10, nv=8)
@@ -866,7 +919,7 @@ def lm(name, p):
 (gxL, hwL, apL, _), (gxC, hwC, apC, _) = GABLES
 lm('finial_C_top', (gxC, -OV - 0.1, FINIAL_TOP['C'])); lm('gable_C_apex', (gxC, -OV - 0.1, apC + 0.08))
 lm('gable_C_foot_R', (gxC + hwC + 0.14, -OV - 0.1, EAVE_Z + 0.03 - 0.08)); lm('gable_C_window', (gxC, -0.05, Z(690)))
-lm('finial_L_top', (gxL, -OV - 0.1, FINIAL_TOP['L'])); lm('gable_L_apex', (gxL, -OV - 0.1, apL + 0.08)); lm('gable_L_window', (X(1137), -0.1, Z(697)))
+lm('finial_L_top', (gxL, -OV - 0.1, FINIAL_TOP['L'])); lm('gable_L_apex', (gxL, -OV - 0.1, apL + 0.08)); lm('gable_L_window', (X(1137), -OV - 0.07, Z(697)))
 lm('finial_end_L_top', (HIP_L, D * 0.45, RID + END_FIN['L'])); lm('finial_end_R_top', (HIP_R, D * 0.45, RID + END_FIN['R'])); lm('ridge_R_end', (HIP_R, D * 0.45, RID))
 lm('eave_L', (xL, -OV, EAVE_Z)); lm('eave_R', (xR, -OV, EAVE_Z))
 lm('attic_open_TL', (X(1295), y_open, Z(668))); lm('attic_open_BR', (X(1410), -0.1, F4 + 0.12))

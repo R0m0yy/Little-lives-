@@ -324,3 +324,22 @@ def hair_strands(color_path, normal_path, S=512, seed=13):
     n = np.stack([-du, dv, np.ones_like(h)], -1)
     n /= np.linalg.norm(n, axis=-1, keepdims=True)
     Image.fromarray(((n * 0.5 + 0.5) * 255).astype('uint8')).save(normal_path)
+
+
+def fishscale(path, W=512, H=512, base=(224, 216, 204), edge=(150, 138, 124), seed=9):
+    """Fish-scale shingles: offset rows of rounded scales, light top -> darker lower rim, thin outline."""
+    import numpy as np
+    rnd = random.Random(seed)
+    im = Image.new('RGB', (W, H), edge); d = ImageDraw.Draw(im)
+    sw, sh = 32, 24
+    for r in range(-1, H // sh + 2):
+        y = r * sh; off = (r % 2) * sw / 2
+        for c in range(-1, W // sw + 2):
+            x = c * sw + off
+            v = rnd.randint(-10, 8)
+            for k in range(6):   # stacked ellipses = soft vertical gradient inside the scale
+                t = k / 5
+                col = tuple(max(0, min(255, int(base[i] + v - 34 * t))) for i in range(3))
+                inset = 1.5 + k * 0.6
+                d.pieslice((x - sw / 2 + inset, y - sh * 0.9 + inset * 0.5 + t * 3, x + sw / 2 - inset, y + sh * 0.9 - inset), 0, 180, fill=col)
+    im.filter(ImageFilter.GaussianBlur(0.6)).save(path)
