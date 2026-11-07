@@ -22,7 +22,7 @@ from mathutils.bvhtree import BVHTree
 
 # ----------------------------------------------------------------------------------------------- parameters
 H = dict(
-    C=V((0.0, 0.0, 0.818)), a=0.126, bf=0.112, bb=0.126, c_top=0.152, c_bot=0.165,
+    C=V((0.0, 0.0, 0.818)), a=0.126, bf=0.112, bb=0.126, c_top=0.152, c_bot=0.160,
     eye_x=0.0639, eye_z=0.801, eye_front_y=-0.108, eye_r=0.043, iris_deg=56.0,   # round 28: set into the face, raised
     ap_in=58.0, ap_out=80.0, lid_up=50.0, lid_low=-60.0, corner_in=-4.0, corner_out=8.0,
     nose_z=0.755, mouth_z=0.727, mouth_hw=0.0285, chin_z=0.676,
@@ -48,8 +48,8 @@ def gauss_ang(d, c, s):
 # coarse forms: (direction, amplitude as fraction of radius, sigma in radians)
 FORMS = [
     (V((0.62, -0.62, -0.42)), 0.135, 0.36), (V((-0.62, -0.62, -0.42)), 0.135, 0.36),   # apple cheeks (widest part)
-    (V((0.0, -0.62, -0.78)), 0.030, 0.22),                                             # short round chin
-    (V((0.74, -0.25, -0.62)), -0.060, 0.30), (V((-0.74, -0.25, -0.62)), -0.060, 0.30),  # jaw tucks in
+    (V((0.0, -0.72, -0.69)), 0.060, 0.17),                                             # short round chin under the mouth (round 29)
+    (V((0.62, -0.45, -0.64)), -0.095, 0.27), (V((-0.62, -0.45, -0.64)), -0.095, 0.27),  # jaw sides curve up to the chin (round 29)
     (V((0.0, 0.45, -0.90)), -0.20, 0.40),                                              # underside/back -> thin neck
     (V((0.50, -0.84, -0.22)), -0.035, 0.16), (V((-0.50, -0.84, -0.22)), -0.035, 0.16),  # shallow eye sockets
     (V((0.86, -0.30, 0.28)), -0.045, 0.24), (V((-0.86, -0.30, 0.28)), -0.045, 0.24),   # temples tuck in
@@ -237,12 +237,13 @@ def build(K, M):
             if disc < 0:
                 continue
             s_out = -b + math.sqrt(disc)                # where this head-normal ray leaves the (lid-padded) eyeball
+            graze = smooth(0.0, (0.30 * R) ** 2, disc)      # round 30: fade out as the ray approaches tangency (no seam)
             if sd < 0:
                 target = min(s_now, s_out - 0.14 * re * smooth(0.0, 0.035, -sd))   # inside the opening: behind the eye
-                wgt = 1.0
+                wgt = graze
             else:
-                target = s_out
-                wgt = 1.0 - smooth(0.03, 0.30, sd)
+                target = max(s_now, s_out)                  # outside the opening: lids only ever rest ON the eye
+                wgt = (1.0 - smooth(0.03, 0.30, sd)) * graze
             if wgt <= 0:
                 continue
             p = C + n * (s_now + (target - s_now) * wgt)
