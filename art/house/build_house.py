@@ -27,7 +27,7 @@ D = 2.5                       # depth of the rooms (front y=0 -> back y=D)
 WALL = 0.08
 FLOORS = [Z(1000), Z(905), Z(820), Z(722)]          # F1, F2, F3 floor levels + attic floor
 POSTS = [X(1082), X(1205), X(1305), X(1420)]
-WING = (X(1035), X(1465))
+WING = (X(1031), X(1468))   # round 7: measured wing extents
 EAVE_Z = Z(722)
 
 K.reset()
@@ -396,7 +396,8 @@ for side in (-1, 1):
     empty(f'Light_wing{side}', ((x0 + x1) / 2, 0.7, F2 - 0.4))
     # lower pent roof
     bx('wingFascia', ((x0 + x1) / 2, -0.42, F2 - 0.06), (x1 - x0 + 0.3, 0.06, 0.1), M['trim'], 0.01)
-    slab('wingRoof1', [(xo + side * 0.15, -0.45, F2 - 0.04), (xi, -0.45, F2 + 0.55), (xi, wd, F2 + 0.55), (xo + side * 0.15, wd, F2 - 0.04)][:: (1 if side > 0 else -1)],
+    xo_low = X(1023) if side < 0 else X(1475)
+    slab('wingRoof1', [(xo_low, -0.45, F2 - 0.04), (xi, -0.45, F2 + 0.55), (xi, wd, F2 + 0.55), (xo_low, wd, F2 - 0.04)][:: (1 if side > 0 else -1)],
          M['slate'], 0.05, 0.6)
     # upper bay with window
     box('bayFront', x0, x1, -0.02, 0.06, F2 + 0.5, F3, M['siding'], 0, 0.8)
@@ -404,22 +405,26 @@ for side in (-1, 1):
     bx('bayWinFrame', ((x0 + x1) / 2, -0.055, (F2 + F3) / 2 + 0.25), (0.05, 0.03, 0.85), M['trim'], 0.0)
     box('bayWall', (x0 if side < 0 else x1 - 0.06), (x0 + 0.06 if side < 0 else x1), 0, wd, F2 + 0.5, F3, M['siding'], 0, 0.8)
     empty(f'Light_bay{side}', ((x0 + x1) / 2, 0.6, F3 - 0.5))
-    slab('wingRoof2', [(xo - side * 0.1, -0.25, F3 - 0.05), (xi, -0.25, F3 + 0.65), (xi, wd, F3 + 0.65), (xo - side * 0.1, wd, F3 - 0.05)][:: (1 if side > 0 else -1)],
+    xo_up = X(1033) if side < 0 else X(1457)
+    slab('wingRoof2', [(xo_up, -0.25, F3 - 0.05), (xi, -0.25, Z(770)), (xi, wd, Z(770)), (xo_up, wd, F3 - 0.05)][:: (1 if side > 0 else -1)],
          M['slate'], 0.05, 0.6)
     # small pediment over the upper wing roof
     pc = (x0 + x1) / 2
-    poly('wingPediment', [(x0, -0.27, F3 - 0.05), (x1, -0.27, F3 - 0.05), (pc, -0.27, F3 + 0.45)], M['shingle'], 0.04, 0.5)
-    cyl('wingFinial', (pc, -0.25, F3 + 0.6), 0.03, 0.3, M['trim'], 8, 0.01)
+    pc = X(1058.3) if side < 0 else X(1445)
+    poly('wingPediment', [(x0, -0.27, F3 - 0.05), (x1, -0.27, F3 - 0.05), (pc, -0.27, Z(772))], M['shingle'], 0.04, 0.5)
+    cyl('wingFinial', (pc, -0.25, Z(767)), 0.03, 0.22, M['trim'], 8, 0.01)
+    K.ellipsoid('wingFinialBall', V((pc, -0.25, Z(763.5))), (0.035, 0.035, 0.035), mat=M['trim'], nu=8, nv=6)
 
 # ------------------------------------------------------------------ roof
-RID = Z(652)           # main ridge
-OV = 0.3               # eave overhang
-xL, xR = POSTS[0] - OV, POSTS[3] + OV
+RID = Z(656.5)         # main ridge (round 7: measured)
+OV = 0.3               # eave overhang (front)
+xL, xR = X(1060), X(1437)   # round 7: measured eave ends
+HIP_L, HIP_R = X(1090), X(1415)   # ridge ends / hip tops (measured end finials)
 # main roof: front slope only over the parts not covered by the cross gables / attic opening, plus back slope
-slab('roofBack', [(xL, D + OV, EAVE_Z), (xR, D + OV, EAVE_Z), (xR, D * 0.45, RID), (xL, D * 0.45, RID)], M['slate'], 0.06, 0.6)
+slab('roofBack', [(xL, D + OV, EAVE_Z), (xR, D + OV, EAVE_Z), (HIP_R, D * 0.45, RID), (HIP_L, D * 0.45, RID)], M['slate'], 0.06, 0.6)
 # hip ends
-slab('roofHipL', [(xL, -OV, EAVE_Z), (xL, D + OV, EAVE_Z), (xL + 0.9, D * 0.45, RID), (xL + 0.9, D * 0.45 - 0.001, RID)], M['slate'], 0.06, 0.6)
-slab('roofHipR', [(xR, D + OV, EAVE_Z), (xR, -OV, EAVE_Z), (xR - 0.9, D * 0.45 - 0.001, RID), (xR - 0.9, D * 0.45, RID)], M['slate'], 0.06, 0.6)
+slab('roofHipL', [(xL, -OV, EAVE_Z), (xL, D + OV, EAVE_Z), (HIP_L, D * 0.45, RID), (HIP_L, D * 0.45 - 0.001, RID)], M['slate'], 0.06, 0.6)
+slab('roofHipR', [(xR, D + OV, EAVE_Z), (xR, -OV, EAVE_Z), (HIP_R, D * 0.45 - 0.001, RID), (HIP_R, D * 0.45, RID)], M['slate'], 0.06, 0.6)
 
 
 def front_slope(x0, x1, z_lo, z_hi, y_lo=-OV, y_hi=D * 0.45):
@@ -431,6 +436,7 @@ yR = D * 0.45
 def slope_z(y):
     return EAVE_Z + (RID - EAVE_Z) * (y + OV) / (yR + OV)
 front_slope(xL, X(1295) - 0.02, EAVE_Z, RID)
+slab('roofFrontHipL', [(HIP_L, D * 0.45, RID), (xL, -OV, EAVE_Z), (xL, -OV, EAVE_Z - 0.001), (HIP_L, D * 0.45 + 0.001, RID)], M['slate'], 0.06, 0.6)
 y_open = (Z(668) - EAVE_Z) / (RID - EAVE_Z) * (yR + OV) - OV   # slope y at the attic-room top
 front_slope(X(1295) - 0.02, xR, Z(668), RID, y_lo=y_open, y_hi=yR)
 front_slope(X(1410), xR, EAVE_Z, Z(668), y_lo=-OV, y_hi=y_open)   # thin return right of the opening
@@ -439,9 +445,10 @@ for xx in (X(1295), X(1410)):
     box('atticJamb', xx - 0.06, xx + 0.06, -0.12, 0.05, F4, Z(668), M['trim'], 0.01)
 box('atticSill', X(1295), POSTS[3], -0.1, 0.05, F4 - 0.02, F4 + 0.12, M['trim'], 0.01)
 # cross gables: (centre x, half width, apex z, depth)
-GABLES = [(X(1135), (X(1195) - X(1060)) / 2 + 0.05, Z(645), 'L'), (X(1245), (X(1310) - X(1180)) / 2 + 0.05, Z(625), 'C')]
+FINIAL_TOP = {}
+GABLES = [(X(1137), (X(1195) - X(1060)) / 2 + 0.05, Z(645), 'L'), (X(1245), (X(1310) - X(1180)) / 2 + 0.05, Z(625), 'C')]
 for gx, hw, apex, tag in GABLES:
-    base = EAVE_Z - 0.05
+    base = EAVE_Z + 0.03   # round 7: gable feet on the eave line (measured)
     for sgn in (-1, 1):  # two roof planes of the gable, running back to the main roof
         e = (gx + sgn * (hw + 0.12), base - 0.05)
         corners = [(gx, -OV - 0.05, apex + 0.05), (e[0], -OV - 0.05, e[1]), (e[0], D * 0.6, e[1]), (gx, D * 0.6, apex + 0.05)]
@@ -451,7 +458,7 @@ for gx, hw, apex, tag in GABLES:
     if tag == 'L':
         poly(f'gableFace{tag}', tri, M['shingle'], 0.05, 0.5)
         # arched attic window
-        wx, wz = X(1150), Z(670)
+        wx, wz = X(1137), Z(697)   # round 7: measured
         bx('gWinGlass', (wx, -0.08, wz), (0.42, 0.02, 0.6), M['shade'], 0)
         bx('gWinFrame', (wx, -0.1, wz - 0.32), (0.55, 0.06, 0.06), M['trim'], 0.01)
         for dx in (-0.23, 0, 0.23):
@@ -472,25 +479,31 @@ for gx, hw, apex, tag in GABLES:
         ob = box('barge', -L / 2, L / 2, -0.03, 0.03, -0.06, 0.06, M['trim'], 0.01)
         ob.rotation_euler = (0, -math.atan2(dvec.z, dvec.x), 0)
         ob.location = (a + b) / 2
-    cyl('finial', (gx, -OV - 0.1, apex + 0.3), 0.04, 0.45, M['trim'], 8, 0.015)
-    K.ellipsoid('finialBall', V((gx, -OV - 0.1, apex + 0.55)), (0.05, 0.05, 0.07), mat=M['trim'], nu=10, nv=8)
+    fh = 0.40 if tag == 'L' else 0.15            # round 7: measured finial heights above the apex
+    cyl('finial', (gx, -OV - 0.1, apex + fh * 0.45), 0.04, fh * 0.9, M['trim'], 8, 0.015)
+    K.ellipsoid('finialBall', V((gx, -OV - 0.1, apex + fh - 0.05)), (0.05, 0.05, 0.05), mat=M['trim'], nu=10, nv=8)
+    FINIAL_TOP[tag] = apex + fh
 # cresting along the main ridge + end finials
 for k in range(26):
-    xx = xL + 0.9 + (xR - xL - 1.8) * k / 25
+    xx = HIP_L + (HIP_R - HIP_L) * k / 25
     cyl('crest', (xx, D * 0.45, RID + 0.1), 0.015, 0.2, M['trim'], 6)
     K.ellipsoid('crestBall', V((xx, D * 0.45, RID + 0.22)), (0.03, 0.03, 0.03), mat=M['trim'], nu=8, nv=6)
-for xx in (xL + 0.9, xR - 0.9):
-    cyl('ridgeFinial', (xx, D * 0.45, RID + 0.3), 0.04, 0.6, M['trim'], 8, 0.015)
-bx('ridgeCap', (0, D * 0.45, RID + 0.01), (xR - xL - 1.8, 0.12, 0.06), M['trim'], 0.01)
+END_FIN = {'L': Z(648) - RID, 'R': Z(630.7) - RID}   # measured end finial heights above the ridge
+for xx, tag in ((HIP_L, 'L'), (HIP_R, 'R')):
+    h = END_FIN[tag]
+    cyl('ridgeFinial', (xx, D * 0.45, RID + h * 0.45), 0.04, h * 0.9, M['trim'], 8, 0.015)
+    K.ellipsoid('ridgeFinialBall', V((xx, D * 0.45, RID + h - 0.05)), (0.045, 0.045, 0.05), mat=M['trim'], nu=10, nv=8)
+bx('ridgeCap', ((HIP_L + HIP_R) / 2, D * 0.45, RID + 0.01), (HIP_R - HIP_L, 0.12, 0.06), M['trim'], 0.01)
 bx('eaveFascia', (0, -OV + 0.02, EAVE_Z - 0.05), (xR - xL, 0.06, 0.14), M['trim'], 0.01)
 
 # ------------------------------------------------------------------ plinth, steps, garden, tabletop
 FLOWERS = [K.material('flower_pink', base='#e86aa0', rough=0.6), K.material('flower_white', base='#f6eef0', rough=0.6),
            K.material('flower_magenta', base='#c03070', rough=0.6), K.material('flower_lilac', base='#c890e0', rough=0.6)]
-box('plinth', WING[0] - 0.1, WING[1] + 0.1, -0.35, D + 0.1, -0.02, F1 - 0.08, M['stone'], 0.01, 0.5)
+PL_L, PL_R = X(1008), X(1492)   # round 7: measured plinth / flower-bed extents
+box('plinth', PL_L, PL_R, -0.35, D + 0.1, -0.02, F1 - 0.08, M['stone'], 0.01, 0.5)
 for k in range(3):
     box('step', X(1205), X(1300), -0.35 - 0.16 * (k + 1), -0.35 - 0.16 * k, -0.02, F1 - 0.08 - (F1 - 0.06) * (k + 1) / 4, M['stone'], 0.01, 0.5)
-for x0, x1 in ((WING[0] - 0.1, X(1200)), (X(1305), WING[1] + 0.1)):
+for x0, x1 in ((PL_L, X(1200)), (X(1305), PL_R)):
     box('bed', x0, x1, -0.75, -0.36, -0.02, 0.12, M['beds'], 0.03, 0.5)
     for k in range(int((x1 - x0) / 0.35)):
         xx = x0 + 0.17 + k * 0.35
@@ -507,20 +520,21 @@ def lm(name, p):
 
 
 (gxL, hwL, apL, _), (gxC, hwC, apC, _) = GABLES
-lm('finial_C_top', (gxC, -OV - 0.1, apC + 0.62)); lm('gable_C_apex', (gxC, -OV - 0.1, apC + 0.08))
-lm('gable_C_foot_R', (gxC + hwC + 0.14, -OV - 0.1, EAVE_Z - 0.13)); lm('gable_C_window', (gxC, -0.05, Z(690)))
-lm('finial_L_top', (gxL, -OV - 0.1, apL + 0.62)); lm('gable_L_apex', (gxL, -OV - 0.1, apL + 0.08)); lm('gable_L_window', (X(1150), -0.1, Z(670)))
-lm('finial_end_L_top', (xL + 0.9, D * 0.45, RID + 0.6)); lm('finial_end_R_top', (xR - 0.9, D * 0.45, RID + 0.6)); lm('ridge_R_end', (xR - 0.9, D * 0.45, RID))
+lm('finial_C_top', (gxC, -OV - 0.1, FINIAL_TOP['C'])); lm('gable_C_apex', (gxC, -OV - 0.1, apC + 0.08))
+lm('gable_C_foot_R', (gxC + hwC + 0.14, -OV - 0.1, EAVE_Z + 0.03 - 0.08)); lm('gable_C_window', (gxC, -0.05, Z(690)))
+lm('finial_L_top', (gxL, -OV - 0.1, FINIAL_TOP['L'])); lm('gable_L_apex', (gxL, -OV - 0.1, apL + 0.08)); lm('gable_L_window', (X(1137), -0.1, Z(697)))
+lm('finial_end_L_top', (HIP_L, D * 0.45, RID + END_FIN['L'])); lm('finial_end_R_top', (HIP_R, D * 0.45, RID + END_FIN['R'])); lm('ridge_R_end', (HIP_R, D * 0.45, RID))
 lm('eave_L', (xL, -OV, EAVE_Z)); lm('eave_R', (xR, -OV, EAVE_Z))
-lm('attic_open_TL', (X(1295), y_open, Z(668))); lm('attic_open_BR', (X(1410), -0.1, F4))
+lm('attic_open_TL', (X(1295), y_open, Z(668))); lm('attic_open_BR', (X(1410), -0.1, F4 + 0.12))
 for i, px in enumerate(POSTS):
     lm(f'post_{i + 1}_F3', (px, -0.13, F3 - 0.06)); lm(f'post_{i + 1}_F2', (px, -0.13, F2 - 0.06))
 lm('ground_C', (X(1255), -0.1, F1))
 for side, nm in ((-1, 'wingL'), (1, 'wingR')):
-    xo = WING[0] if side < 0 else WING[1]; xi = POSTS[0] - 0.1 if side < 0 else POSTS[3] + 0.1; pc = (xo + xi) / 2
-    lm(f'{nm}_finial', (pc, -0.25, F3 + 0.75)); lm(f'{nm}_upper_eave', (xo - side * 0.1, -0.25, F3 - 0.05))
-    lm(f'{nm}_lower_eave', (xo + side * 0.15, -0.45, F2 - 0.04)); lm(f'{nm}_rail_top', (xo, 0.05, F1 + 0.5))
-lm('plinth_L', (WING[0] - 0.1, -0.35, F1 - 0.08)); lm('plinth_R', (WING[1] + 0.1, -0.35, F1 - 0.08)); lm('plinth_bottom_C', (X(1256.7), -0.83, -0.02))
+    xo = WING[0] if side < 0 else WING[1]
+    lm(f'{nm}_finial', (X(1058.3) if side < 0 else X(1445), -0.25, Z(763.5) + 0.035))
+    lm(f'{nm}_upper_eave', (X(1033) if side < 0 else X(1457), -0.25, F3 - 0.05))
+    lm(f'{nm}_lower_eave', (X(1023) if side < 0 else X(1475), -0.45, F2 - 0.04)); lm(f'{nm}_rail_top', (xo, 0.05, F1 + 0.5))
+lm('plinth_L', (PL_L, -0.75, 0.12)); lm('plinth_R', (PL_R, -0.75, 0.12)); lm('plinth_bottom_C', (X(1256.7), -0.83, -0.02))
 
 for o in bpy.context.scene.objects:
     if o.data:
