@@ -48,7 +48,7 @@ def gauss_ang(d, c, s):
 # coarse forms: (direction, amplitude as fraction of radius, sigma in radians)
 FORMS = [
     (V((0.62, -0.62, -0.42)), 0.135, 0.36), (V((-0.62, -0.62, -0.42)), 0.135, 0.36),   # apple cheeks (widest part)
-    (V((0.0, -0.72, -0.69)), 0.060, 0.17),                                             # short round chin under the mouth (round 29)
+    (V((0.0, -0.72, -0.69)), 0.060, 0.17),                                             # short round chin under the mouth
     (V((0.62, -0.45, -0.64)), -0.095, 0.27), (V((-0.62, -0.45, -0.64)), -0.095, 0.27),  # jaw sides curve up to the chin (round 29)
     (V((0.0, 0.45, -0.90)), -0.20, 0.40),                                              # underside/back -> thin neck
     (V((0.50, -0.84, -0.22)), -0.035, 0.16), (V((-0.50, -0.84, -0.22)), -0.035, 0.16),  # shallow eye sockets
@@ -220,6 +220,10 @@ def build(K, M):
             for sx in (-1, 1):
                 disp -= 0.0018 * math.exp(-((p.x - sx * (mhw + 0.0025)) ** 2 + (p.z - (MZ + 0.0040)) ** 2) / (2 * 0.0026 ** 2))
         p = p + rdir * disp
+        # chin (round 31c, proportional vertical deform): the chin is the lowest point of the face, the jaw
+        # floor behind it rises toward the thin neck
+        p.z -= 0.013 * math.exp(-(p.x ** 2 / (2 * 0.021 ** 2) + (p.y + 0.084) ** 2 / (2 * 0.016 ** 2))) * smooth(0.735, 0.705, p.z)
+        p.z += 0.016 * math.exp(-(p.x ** 2 / (2 * 0.034 ** 2) + (p.y + 0.028) ** 2 / (2 * 0.024 ** 2))) * smooth(0.725, 0.695, p.z)
         # eye sockets carved into the mesh: lids are this skin resting on the eyeball. Vertices move along the HEAD
         # normal (ray from the head centre), never toward the eye centre, so they keep their spacing (no streaks).
         for sg, (E, f, u, o) in frames.items():
