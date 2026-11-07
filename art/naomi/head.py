@@ -442,7 +442,7 @@ def seg_dist(P, pts):
     return best, bt
 
 
-def paint_skin(pos, valid, ao=None, base=(214, 136, 98)):
+def paint_skin(pos, valid, ao=None, base=(222, 140, 98)):
     """Paints the face texture (sRGB uint8) from the world-position map."""
     Ht, W = valid.shape
     col = np.broadcast_to(srgb2lin(base), (Ht, W, 3)).copy()
@@ -461,7 +461,7 @@ def paint_skin(pos, valid, ao=None, base=(214, 136, 98)):
     mix(0.18 * np.clip((z - 0.80) / 0.12, 0, 1) * front, (226, 150, 112))
     # blush: apple cheeks, nose tip, chin
     for sx in (-1, 1):
-        mix(0.50 * g3(sx * 0.066, -0.085, 0.744, 0.021, 0.017, 0.05) * front, (232, 112, 92))
+        mix(0.64 * g3(sx * 0.066, -0.085, 0.744, 0.022, 0.018, 0.05) * front, (226, 100, 80))
     mix(0.45 * g3(0, -0.12, H['nose_z'] + 0.001, 0.0085, 0.0075, 0.05) * front, (226, 104, 86))
     mix(0.22 * g3(0, -0.09, 0.688, 0.016, 0.010, 0.05) * front, (226, 118, 96))
     # lips: rosy fuller lower lip, thinner upper lip, darker closed-mouth line with lifted corners

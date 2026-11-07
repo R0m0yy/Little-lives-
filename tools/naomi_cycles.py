@@ -123,6 +123,7 @@ except Exception:
     pass
 sc.view_settings.view_transform = 'AgX'
 sc.view_settings.look = 'None'
+sc.view_settings.exposure = 0.85   # round 35: matched to the Three.js render's overall level
 sc.render.film_transparent = False
 out2x = os.path.join(ROOT, 'qa/naomi3d', f'{tag}_cycles_head@2x.png')
 sc.render.filepath = out2x

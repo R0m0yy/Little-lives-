@@ -3,3 +3,5 @@ node_modules/
 __pycache__/
 art/naomi/tex/
 art/house/tex/
+qa/naomi3d/dev*
+qa/naomi3d/diag_*@2x.png

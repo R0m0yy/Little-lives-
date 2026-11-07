@@ -72,6 +72,60 @@ Asset now ~600k triangles (GLB ~13 MB). Still static (no rig). Not approved; fam
 
 **Waiting for approval before:** (a) ≤60k-triangle game LOD + skeleton with idle/walk/sit clips; (b) house pass (pierced fretwork, dense furniture, rugs, stairs and doorways across all three floors). No other family members.
 
+## Naomi rounds 26–35 — structured rebuild of head, hair and look-dev (2026-11-07) — STOPPED FOR OWNER APPROVAL
+
+Owner verdict after round 25: outfit close, head/hair/face/rendering not. Rounds 26–35 rebuilt those against a
+**measured** reference instead of eyeballed side-by-sides. Outfit/body unchanged.
+
+### Measurement (Phase A, commit 3f4a0eb)
+- `refs/naomi_head_ref.png`, `refs/naomi_full_ref.png` — native-resolution board crops (the board is 1536×1024, Naomi's head is only ~95 px tall; this caps how fine the comparison can be).
+- `refs/naomi_landmarks.json` — 22 hand-annotated head landmarks + body points + head/hair silhouette polygon → `refs/naomi_head_mask(_4x).png`.
+- Reference camera (`web/lib/refcam.js`, viewer `?view=ref`): 85 mm-equivalent (16.1° vertical FOV), 9° above eye level, **20° yaw toward her left** (15/17/20° were measured; 20 fitted best; 23° was tried in round 34 and made the eyes worse, so it was rejected). Distance is solved so the projected head height (chin → top of hair) equals the reference's 95.4 px; translation is a least-squares fit over the face landmarks, so errors measure shape, not placement.
+- `tools/naomi_measure.cjs` → 2× renders, `tools/naomi_report.py` → landmark error table (% of head height), silhouette IoU, onion skin, landmark overlay, mask diff, and the reference | Three.js | Cycles side-by-side. `tools/naomi_cycles.py` renders the same camera in Blender Cycles (CPU, SSS). `tools/naomi_round2.sh N "change" [1]` runs a whole round.
+
+### What was rebuilt (round 26)
+- Head (`art/naomi/head.py`): one quad-sphere base mesh shaped with coarse forms (apple cheeks as the widest part, short chin, slight brow ridge, tucked temples, jaw into a thinner neck), Catmull-Clark ×2, then a detail pass: eye sockets carved into the mesh along head normals (lids are the head skin resting on the eyeball), button nose with nostril wings, closed smile with fuller lower lip and corner dimples. Brows, lips, blush, lid lines and the hairline transition are **painted** into a 2048×1024 skin texture from a Cycles-baked position map; AO baked in Blender and multiplied in.
+- Eyes: new iris texture (dark pupil, radial fibres, blue-grey outer ring, dark limbal ring, big soft upper-left + small second highlight), glass cornea bulge, thick upper lash line thickening outward + 4 outer flicks, thin lower lid line.
+- Hair (`art/naomi/hair.py`): strand tubes deleted. A grooved hair volume (soft valleys converging on the bun) + 3 large rounded clumps (side-swept forehead lock and left side), a bun of 11 S-curve locks in a rosette + 3 loose curls, 2 thin face-framing spirals. Strand-direction texture + normal map; base #1b1412.
+- Look-dev (`web/lib/look.js`): Kajiya-Kay double highlight (sharp white + soft warm-brown), skin wrap lighting + red-orange terminator tint (onBeforeCompile), warm key upper-left / cool fill right / warm rims behind, board-sampled backdrop with soft bokeh, bloom, ACES, 2× render downsampled.
+
+### Rounds (one change each; sbs = `qa/naomi3d/rNN_sbs.png`, onion = `rNN_onion.png`, table = `rNN_table.md`)
+| round | change | landmarks ≤3 % | mean err % | IoU | biggest remaining difference |
+|---|---|---|---|---|---|
+| 25 | (before rebuild) | 4/22 | 7.4 | 0.710 | — |
+| 26 | structured rebuild (above) | 10/22 | 4.0 | 0.837 | hair reads as tangled wavy ribbons; ear pokes out |
+| 27 | hair: grooved masses + bridge into bun, ribbon clumps removed | 10/22 | 3.5 | 0.859 | eyes bulge out of the face |
+| 28 | eyes set 9 mm deeper, raised 10 mm | 14/22 | 3.0 | 0.860 | chin 7.6 % (jaw underside hangs below the chin) |
+| 29 | lower face: round chin, jaw curves up | 13/22 | 3.0 | 0.868 | V-shaped crease under each eye |
+| 30 | socket carve without seams (grazing-ray fade) | 13/22 | 3.0 | 0.868 | chin still 7.7 % |
+| 31 | chin is the lowest point (proportional deform; 31a/31b radial attempts failed) | 15/22 | 2.7 | 0.866 | bun is a lattice of crossing ribbons |
+| 32 | bun rebuilt as a rosette of S-curve locks | 16/22 | 3.1 | 0.884 | bun too low/far left, notch above it |
+| 33 | bun higher + wider, notch filled (33a moved it the wrong way) | 14/22 | 2.7 | 0.888 | near/far eye foreshortening wrong |
+| 34 | eye openings wrap around the face (apertures turned out 16°) | 17/22 | 2.5 | 0.888 | skin flat and too light on the shaded side |
+| 35 | look-dev: contrast, warmer skin, blush, no under-eye AO patch, Cycles exposure | 17/22 | 2.5 | 0.888 | see below |
+
+Full/face/back views: `r26_views.png`, `r29_views.png`, `r32_views.png`, `r35_views.png`.
+
+### Against the targets (honest)
+- **Landmarks:** 17/22 within 3 % — **target not met**. Failing at round 35: bun_top 5.3 %, cheek_L 4.3 %, hair_top 4.2 %, ear_R_top 4.0 %, eye_R 3.8 %. Mean 2.5 % (was 7.4 % at round 25).
+- **Silhouette IoU:** 0.888 — **target 0.90 not met** (was 0.710). Remaining misses: the board's bun is wider at the lower left and its hair continues past the ear on her right; her left temple/cheek edge is a little narrow.
+- **Game version:** head+hair 54.9k triangles in `assets/characters/naomi_game.glb` (≤60k ✓); hero `naomi.glb` head+hair 281k.
+
+### Three.js vs Cycles diagnostic
+- Hair colour: Cycles renders the same hair near-black like the board; Three.js lifts it to dark chestnut with streaky highlights → **shading** problem in the Three.js hair shader (Kajiya-Kay + specular), not the model.
+- Skin: after round 35, Cycles matches the board in the shaded cheek (191,118,86 vs board 192,108,72) while Three.js is far too bright there (238,142,89) → **shading** (Three.js fill/wrap too strong). Both are less creamy than the board in the lit areas.
+- Both renderers share the modelling differences: smoother/blander hair than the board's sculpted locks, glossy marble-like eyes, small ear.
+- GTAO was tried and disabled: in SwiftShader it darkened a screen-space box and made hair translucent. Baked AO is used.
+
+### Biggest remaining differences after round 35
+1. **Three.js shading**: skin too light and flat on the shaded side; hair too brown with noisy highlight streaks (Cycles shows both can be fixed in shading).
+2. **Hair sculpt**: the board's hair is a few big glossy locks with crisp edges; ours is smoother and more uniform, and the bun is still a little small at the lower left.
+3. **Eyes**: still read as glossy marbles; the board's thick upper lid wraps further over the iris and the iris is darker with a softer ring.
+4. **Ear** still pokes out sideways in the face close-up; hairline shows a hard dark edge there.
+5. Measurement limit: the board is low-resolution (head ≈ 95 px), so ±1 px annotation error ≈ 1 % of head height.
+
+Not started (waiting for approval): rig/LOD clips, house pass, other family members, gameplay.
+
 ## House — 6 rounds
 1 first blockout · 2 roof missing (only edge-on gable planes) → full-width slate front slope, attic opening ·
 3 interiors pale/blown → amber light, golden papers, darker floors · 4 thin trim → chunky posts, spindle friezes, flowers, deeper wing roofs ·

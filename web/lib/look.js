@@ -4,8 +4,8 @@
 import * as THREE from 'three';
 
 /** Round 26+ rig (owner brief): warm key upper-left (~3300 K), cool soft fill right, strong warm rim behind-right. */
-export function studioLights(scene, { key = 2.3, fill = 0.65, rim = 2.6 } = {}) {
-  const hemi = new THREE.HemisphereLight(0xf0dfe8, 0x5a4044, 0.45); scene.add(hemi);
+export function studioLights(scene, { key = 2.9, fill = 0.42, rim = 2.6 } = {}) {   // round 35: board-like contrast
+  const hemi = new THREE.HemisphereLight(0xf0dfe8, 0x5a4044, 0.30); scene.add(hemi);
   const k = new THREE.DirectionalLight(0xffc896, key); k.position.set(-2.2, 3.0, 2.8); k.castShadow = true;
   k.shadow.mapSize.set(2048, 2048); Object.assign(k.shadow.camera, { left: -1.2, right: 1.2, top: 1.6, bottom: -0.4 });
   k.shadow.radius = 5; k.shadow.bias = -0.0004; k.shadow.normalBias = 0.01;
@@ -68,7 +68,7 @@ float kkTerm(vec3 T, vec3 N, vec3 H, float sh, float ex) { vec3 Ts = normalize(T
 
 /** Skin: wrap lighting (light bleeds past the terminator) tinted red-orange near the terminator (SSS approximation). */
 function skinShader(m, o = {}) {
-  const P = { wrap: 0.40, tint: new THREE.Color(1.0, 0.36, 0.20), k: 0.38, ...o };
+  const P = { wrap: 0.42, tint: new THREE.Color(1.0, 0.30, 0.16), k: 0.48, ...o };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, { skWrap: { value: P.wrap }, skTint: { value: P.tint }, skK: { value: P.k } });
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float skWrap, skK; uniform vec3 skTint;')

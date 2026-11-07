@@ -311,7 +311,8 @@ for sg in (-1, 1):
     E = HINFO['frames'][sg][0]
     dist = np.linalg.norm(pos - np.array(E[:]), axis=-1) / HEAD.H['eye_r']
     near_eye = np.maximum(near_eye, np.clip((1.45 - dist) / 0.40, 0, 1))
-ao_up = ao_up * (1 - near_eye) + near_eye
+ao_typ = float(np.median(ao_up[valid & (pos[..., 1] < -0.06)]))   # round 35: typical face AO, not 1.0 (no pale patch)
+ao_up = ao_up * (1 - near_eye) + ao_typ * near_eye
 face = HEAD.paint_skin(pos, valid, ao=0.55 + 0.45 * ao_up)
 _Img.fromarray(face).save(os.path.join(TEX, 'face2.png'))
 M['skin'] = K.material('skin_face', tex=os.path.join(TEX, 'face2.png'), rough=0.55, sheen=0.25, sheen_tint='#ff9a70', spec=0.45)
