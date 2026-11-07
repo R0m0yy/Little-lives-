@@ -220,6 +220,33 @@ def spandrel_keep(Wd, Hh):
     return keep
 
 
+def turned_finial(name, x, y, z0, z1, r=0.045):
+    """Lathe-turned finial from z0 to z1 (spire with bulbs and collars), round 12."""
+    h = z1 - z0
+    prof = [(0.0, 1.0), (0.18, 0.985), (0.30, 0.94), (0.22, 0.86), (0.42, 0.80), (0.62, 0.74), (0.66, 0.68), (0.40, 0.63), (0.28, 0.58),
+            (0.55, 0.52), (0.85, 0.44), (0.95, 0.36), (0.80, 0.28), (0.45, 0.22), (0.50, 0.15), (0.75, 0.10), (0.80, 0.0)]
+    rows = [(r * a, r * a, z0 + h * t) for a, t in prof]
+    return K.subsurf(K.lathe(name, rows, nu=16, mat=M['trim']), 1)
+
+
+def cresting_keep(P=0.16, Hc=0.17):
+    def keep(u, v):
+        if v < 0.028:
+            return True
+        c = (math.floor(u / P) + 0.5) * P; du = u - c
+        if abs(du) < 0.010 * (1 - 0.4 * v / Hc) and v < Hc - 0.035:
+            return True
+        if math.hypot(du, v - (Hc - 0.028)) < 0.022:
+            return True
+        if 0.010 < math.hypot(abs(du) - 0.038, v - 0.066) < 0.022:
+            return True
+        c2 = math.floor(u / P + 0.5) * P; d2 = u - c2
+        if abs(d2) < 0.006 and v < 0.07 or math.hypot(d2, v - 0.078) < 0.013:
+            return True
+        return False
+    return keep
+
+
 # ------------------------------------------------------------------ furniture kit
 def bed(x, y, z, w=1.0, l=1.25, quilt='quilt'):
     bx('bedframe', (x, y, z + 0.18), (w, l, 0.2), M['wood'])
@@ -797,8 +824,7 @@ for side in (-1, 1):
     poly('wingPediment', [(x0, -0.27, F3 - 0.05), (x1, -0.27, F3 - 0.05), (pc, -0.27, Z(772))], M['shingle'], 0.04, 0.5)
     for e0 in (x0, x1):
         bargeboard('wingBarge', V((pc, -0.29, Z(772) + 0.02)), V((e0, -0.29, F3 - 0.05)), depth=0.12)
-    cyl('wingFinial', (pc, -0.25, Z(767)), 0.03, 0.22, M['trim'], 8, 0.01)
-    K.ellipsoid('wingFinialBall', V((pc, -0.25, Z(763.5))), (0.035, 0.035, 0.035), mat=M['trim'], nu=8, nv=6)
+    turned_finial('wingFinial', pc, -0.25, Z(772) - 0.02, Z(763.5) + 0.035, r=0.035)
 
 # ------------------------------------------------------------------ roof
 RID = Z(656.5)         # main ridge (round 7: measured)
@@ -875,21 +901,16 @@ for gx, hw, apex, tag in GABLES:
             b = a + (b - a) * ((a.x - X_VALLEY) / (a.x - b.x))
         bargeboard(f'barge{tag}{sgn}', a, b)   # round 10: pierced fretwork
     fh = 0.40 if tag == 'L' else 0.15            # round 7: measured finial heights above the apex
-    cyl('finial', (gx, -OV - 0.1, apex + fh * 0.45), 0.04, fh * 0.9, M['trim'], 8, 0.015)
-    K.ellipsoid('finialBall', V((gx, -OV - 0.1, apex + fh - 0.05)), (0.05, 0.05, 0.05), mat=M['trim'], nu=10, nv=8)
+    turned_finial('finial', gx, -OV - 0.1, apex - 0.02, apex + fh, r=0.05 if tag == 'L' else 0.04)
     FINIAL_TOP[tag] = apex + fh
 # main front slope only behind the left gable (round 8b): it used to run through the centre-gable attic room
 front_slope(xL, X_VALLEY, EAVE_Z, RID)
 # cresting along the main ridge + end finials
-for k in range(26):
-    xx = HIP_L + (HIP_R - HIP_L) * k / 25
-    cyl('crest', (xx, D * 0.45, RID + 0.1), 0.015, 0.2, M['trim'], 6)
-    K.ellipsoid('crestBall', V((xx, D * 0.45, RID + 0.22)), (0.03, 0.03, 0.03), mat=M['trim'], nu=8, nv=6)
+pierced('cresting', V((HIP_L, D * 0.45, RID + 0.035)), V((1, 0, 0)), V((0, 0, 1)), HIP_R - HIP_L, 0.17, cresting_keep(), cell=0.008, thick=0.02)   # round 12
 END_FIN = {'L': Z(648) - RID, 'R': Z(630.7) - RID}   # measured end finial heights above the ridge
 for xx, tag in ((HIP_L, 'L'), (HIP_R, 'R')):
     h = END_FIN[tag]
-    cyl('ridgeFinial', (xx, D * 0.45, RID + h * 0.45), 0.04, h * 0.9, M['trim'], 8, 0.015)
-    K.ellipsoid('ridgeFinialBall', V((xx, D * 0.45, RID + h - 0.05)), (0.045, 0.045, 0.05), mat=M['trim'], nu=10, nv=8)
+    turned_finial('ridgeFinial', xx, D * 0.45, RID - 0.02, RID + h, r=0.05)
 bx('ridgeCap', ((HIP_L + HIP_R) / 2, D * 0.45, RID + 0.01), (HIP_R - HIP_L, 0.12, 0.06), M['trim'], 0.01)
 bx('eaveFascia', (0, -OV + 0.02, EAVE_Z - 0.05), (xR - xL, 0.06, 0.14), M['trim'], 0.01)
 
