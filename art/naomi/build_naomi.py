@@ -56,7 +56,8 @@ M = dict(
     mouth=K.material('skin_mouth', base='#7a2a22', rough=0.6),
     hair=K.material('hair', base='#120b0c', rough=0.30, aniso=0.65, spec=0.65, sheen=0.15, sheen_tint='#56627e', sheen_rough=0.4),
     hairCap=K.material('hair_cap', base='#060304', rough=0.6, aniso=0.2, spec=0.35),
-    bun=K.material('hair_bun', base='#3a2218', rough=0.48, aniso=0.3, spec=0.45, sheen=0.4, sheen_tint='#c09070', sheen_rough=0.45),
+    bun=K.material('hair_bun', base='#3a2016', rough=0.36, aniso=0.5, spec=0.55, sheen=0.35, sheen_tint='#c08060', sheen_rough=0.45),
+    bunHi=K.material('hair_bunHi', base='#6a3a22', rough=0.34, aniso=0.5, spec=0.55, sheen=0.4, sheen_tint='#e0a070', sheen_rough=0.4),
     blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.85, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     apron=K.material('fabric_apron', tex=os.path.join(TEX, 'apron.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
@@ -466,24 +467,51 @@ for sg in (1, -1):
     top = cap_point(V((sg * 0.84, -0.50, 0.02)).normalized(), 0.002)
     face_curl(f'FaceCurl{sg}', top, 0.105, 2.6, 0.0075, 0.012, 0.0042, sg, 80 + sg)
 
-# (d) bun: core + many small loose ringlets springing outward
-K.subsurf(K.ellipsoid('BunCore', BUN, (P['bun_r'] * 0.80, P['bun_r'] * 0.76, P['bun_r'] * 0.80), mat=M['bun']), 1)
-NCURL = 90
-for k in range(NCURL):
-    zz = 1 - 2 * (k + 0.5) / NCURL
-    rr = math.sqrt(1 - zz * zz)
-    d = V((math.cos(golden * k) * rr, math.sin(golden * k) * rr, zz))
-    if d.dot(-bun_dir) > 0.5:
-        continue
-    d = jitter(d, 0.15, sr)
-    cen = BUN + d * P['bun_r'] * sr.uniform(0.62, 0.78)
-    t1 = d.cross(V((0, 0, 1)) if abs(d.z) < 0.9 else V((1, 0, 0))).normalized()
-    t2 = d.cross(t1)
-    rad, ln, turns = sr.uniform(0.0055, 0.0085), sr.uniform(0.020, 0.032), sr.uniform(1.6, 2.4)
-    ph = sr.random() * K.TAU
-    pts = [cen + d * (t * ln) + (t1 * math.cos(ph + t * turns * K.TAU) + t2 * math.sin(ph + t * turns * K.TAU)) * rad * (1 - 0.25 * t)
-           for t in [i / 39 for i in range(40)]]
-    K.sweep(f'Ringlet{k}', pts, lambda t: (0.0042 * (1 - 0.55 * t) + 0.0005, 0.0040 * (1 - 0.55 * t) + 0.0005), nprof=8, mat=M['bun'], uv_len=3)
+# (d) bun: rounded mass of layered soft S-wave locks wrapped around a core, warm brown highlights, 4 loose curls
+BR = P['bun_r']
+K.subsurf(K.ellipsoid('BunCore', BUN, (BR * 0.78, BR * 0.74, BR * 0.78), mat=M['bun']), 1)
+br = random.Random(33)
+
+
+def bun_lock(name, axis, start, sweep_ang, layer, width, thick, amp, freq, mat):
+    """Lock wrapping the bun: rotate `start` around `axis` by sweep_ang with an S-wave across the path."""
+    axis = axis.normalized()
+    start = (start - axis * start.dot(axis)).normalized()
+    side = axis.cross(start)
+    pts, nrm = [], []
+    n = 44
+    for k in range(n):
+        t = k / (n - 1)
+        a = sweep_ang * t
+        d = start * math.cos(a) + side * math.sin(a)
+        d = (d + axis * amp * math.sin(freq * math.pi * t)).normalized()       # S-wave
+        rad = BR * layer * (1 + 0.05 * math.sin(math.pi * t))                 # bulges over the mass
+        p = BUN + d * rad
+        if (p - C).length < (head_point((p - C).normalized()) - C).length + 0.004:
+            p = C + (p - C).normalized() * ((head_point((p - C).normalized()) - C).length + 0.004)   # stay outside the scalp
+        pts.append(p); nrm.append((p - BUN).normalized())
+    prof = lambda t: (thick * (0.30 + 0.70 * math.sin(math.pi * t) ** 0.6) + 0.0006,
+                      width * (0.20 + 0.80 * math.sin(math.pi * t) ** 0.5) + 0.001)
+    return K.subsurf(K.sweep(name, pts, prof, nprof=10, mat=mat, normals=nrm, uv_len=5), 1)
+
+
+nl = 0
+for layer, count in ((0.84, 9), (0.94, 9), (1.04, 8)):
+    for k in range(count):
+        ax = V((br.uniform(-1, 1), br.uniform(-1, 1), br.uniform(-1, 1)))
+        st = V((br.uniform(-1, 1), br.uniform(-1, 1), br.uniform(-1, 1)))
+        hi = br.random() < 0.35
+        bun_lock(f'BunLock{nl}', ax, st, math.radians(br.uniform(170, 260)), layer, br.uniform(0.022, 0.032), br.uniform(0.007, 0.010),
+                 br.uniform(0.12, 0.22), br.choice((2, 3)), M['bunHi'] if hi else M['bun'])
+        nl += 1
+# loose curls escaping the bun
+for k in range(4):
+    a = -0.9 + k * 0.6
+    base = BUN + V((math.cos(a) * 0.6 - 0.2, math.sin(a) * 0.5 + 0.3, -0.7)).normalized() * BR * 0.95
+    ph = br.random() * K.TAU
+    pts = [base + V((math.cos(ph + t * 2.3 * K.TAU) * 0.006 * (1 + t), math.sin(ph + t * 2.3 * K.TAU) * 0.006 * (1 + t), -t * br.uniform(0.04, 0.06)))
+           for t in [i / 49 for i in range(50)]]
+    K.sweep(f'BunCurl{k}', pts, lambda t: (0.0040 * (1 - 0.6 * t) + 0.0006, 0.0038 * (1 - 0.6 * t) + 0.0006), nprof=8, mat=M['bunHi'] if k % 2 else M['bun'], uv_len=4)
 
 # ================================================================== BODY (union of arms + hands + legs + neck)
 def arm_parts(sg):
@@ -695,7 +723,7 @@ K.subsurf(K.surface('Underskirt', under, 128, 10, wrap_u=True, mat=M['under']), 
 
 # ------------------------------------------------------------------ pose (static, no rig): relaxed stance, head turn + tilt
 HEAD_PARTS = ('Head', 'Ear', 'Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple',
-              'HairCap', 'HairStrand', 'HairSwoop', 'FaceCurl', 'BunCore', 'Ringlet')
+              'HairCap', 'HairStrand', 'HairSwoop', 'FaceCurl', 'BunCore', 'BunLock', 'BunCurl')
 piv = V((0, 0.012, 0.662))
 Rh = Matrix.Rotation(math.radians(P.get('head_yaw', 0)), 4, 'Z') @ Matrix.Rotation(math.radians(P.get('head_roll', 0)), 4, 'Y') \
     @ Matrix.Rotation(math.radians(P.get('head_pitch', 2)), 4, 'X')

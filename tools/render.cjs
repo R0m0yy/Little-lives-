@@ -17,7 +17,7 @@ const srv = http.createServer((req, res) => {
   await pg.goto(`http://localhost:${port}/web/${page}`);
   await pg.waitForFunction('window.READY', null, { timeout: 240000 });
   const st = await pg.evaluate('window.READY');
-  await pg.screenshot({ path: out });
+  await pg.screenshot({ path: out, timeout: 180000 });
   if (errs.length || st === 'error') console.error('ERRORS', errs.slice(0, 5), st);
   await b.close(); srv.close();
 });
