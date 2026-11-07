@@ -29,6 +29,8 @@ FLOORS = [Z(1000), Z(905), Z(820), Z(722)]          # F1, F2, F3 floor levels + 
 POSTS = [X(1082), X(1205), X(1305), X(1420)]
 WING = (X(1031), X(1468))   # round 7: measured wing extents
 EAVE_Z = Z(722)
+XGC, ZGC = X(1237), Z(633)   # round 15: centre gable centre/apex to the measured landmarks (was X(1245), Z(625))
+XAR = X(1400)                # round 15: right edge of the open attic (was X(1410))
 
 K.reset()
 T = {}
@@ -473,7 +475,7 @@ ms, me = ca + 0.25, cb - 0.35
 h = stair('S1', 'x', ms, me, F1, F2, SY0, SY1, room='dining'); holes[1].append((h[0], h[1], SY0, SY1))
 h = stair('S2', 'x', ms, me, F2, F3, SY0, SY1, room='sitting'); holes[2].append((h[0], h[1], SY0, SY1))
 # attic flight (steep): centre bay back strip, arrives under the centre gable ridge
-h = stair('S3', 'x', ca + 0.02, X(1245) + 0.40, F3, F4, SY0, SY1, n=10, room='study'); holes[3].append((h[0], h[1], SY0, SY1))
+h = stair('S3', 'x', ca + 0.02, XGC + 0.40, F3, F4, SY0, SY1, n=10, room='study'); holes[3].append((h[0], h[1], SY0, SY1))
 # loft flight: Laila's room, right wall, back (bottom) -> front (top)
 ra, rb = XI[2][1] - 0.52, XI[2][1] - 0.02
 h = stair('S4', 'y', YB - 0.20, 0.62, F3, F4, ra, rb, n=10, room='laila'); holes[3].append((ra, rb, h[0], h[1]))
@@ -569,7 +571,7 @@ for lvl in range(3):
     marker(f'Floor_{lvl + 1}', V((0.0, 1.2, (z0 + z1) / 2)), ll_type='floor', level=lvl, w=WING[1] - WING[0], h=z1 - z0 + 0.3)
 
 # ---------------- attic: centre-gable landing, open loft, sealed left-gable storage
-gxC, apC = X(1245), Z(625)
+gxC, apC = XGC, ZGC
 _hwC = (X(1310) - X(1180)) / 2 + 0.05
 def roofC(x):
     return apC + 0.05 - abs(x - gxC) * (apC + 0.05 - (EAVE_Z - 0.02)) / (_hwC + 0.12)
@@ -581,7 +583,7 @@ window(X(1237), F4 + 0.30, 0.42, 0.62, YB - 0.01)
 marker('Room_attic_c', V((gxC, 1.0, F4 + 0.6)), ll_type='room', title='Attic landing (centre gable)', level=3, w=ACX1 - ACX0, d=YB, h=apC - F4, z0=F4,
        x0=ACX0, x1=ACX1)
 empty('Light_attic_c', (gxC, 1.0, F4 + 1.0))
-LX0, LX1, LY1 = X(1300), X(1410), 1.85
+LX0, LX1, LY1 = X(1300), XAR, 1.85
 for xx in (LX0, LX1):
     box('loft_side', xx - 0.03, xx + 0.03, 0, LY1, F4, Z(668), M['wp_sage'], 0, 0.9)
 box('loft_knee', LX0, LX1, LY1, LY1 + 0.04, F4, F4 + 0.62, M['wp_sage'], 0, 0.9)
@@ -882,14 +884,14 @@ def slope_z(y):
 slab('roofFrontHipL', [(HIP_L, D * 0.45, RID), (xL, -OV, EAVE_Z), (xL, -OV, EAVE_Z - 0.001), (HIP_L, D * 0.45 + 0.001, RID)], M['slate'], 0.06, 1.0)
 y_open = (Z(668) - EAVE_Z) / (RID - EAVE_Z) * (yR + OV) - OV   # slope y at the attic-room top
 front_slope(X(1295) - 0.02, xR, Z(668), RID, y_lo=y_open, y_hi=yR)
-front_slope(X(1410), xR, EAVE_Z, Z(668), y_lo=-OV, y_hi=y_open)   # thin return right of the opening
-box('atticLintel', X(1295) - 0.05, X(1410) + 0.05, y_open - 0.1, y_open + 0.05, Z(668) - 0.12, Z(668), M['trim'], 0.01)
-for xx in (X(1295), X(1410)):
+front_slope(XAR, xR, EAVE_Z, Z(668), y_lo=-OV, y_hi=y_open)   # thin return right of the opening
+box('atticLintel', X(1295) - 0.05, XAR + 0.05, y_open - 0.1, y_open + 0.05, Z(668) - 0.12, Z(668), M['trim'], 0.01)
+for xx in (X(1295), XAR):
     box('atticJamb', xx - 0.06, xx + 0.06, -0.12, 0.05, F4, Z(668), M['trim'], 0.01)
 box('atticSill', X(1295), POSTS[3], -0.1, 0.05, F4 - 0.02, F4 + 0.12, M['trim'], 0.01)
 # cross gables: (centre x, half width, apex z, depth)
 FINIAL_TOP = {}
-GABLES = [(X(1137), (X(1195) - X(1060)) / 2 + 0.05, Z(645), 'L'), (X(1245), (X(1310) - X(1180)) / 2 + 0.05, Z(625), 'C')]
+GABLES = [(X(1137), (X(1195) - X(1060)) / 2 + 0.05, Z(645), 'L'), (XGC, (X(1310) - X(1180)) / 2 + 0.05, ZGC, 'C')]
 # round 8 (LL-034): where the left gable's right plane meets the centre gable's left plane. The board shows the left
 # gable in front: its right bargeboard runs unbroken to its foot and the centre gable's left side stops on it.
 _gl, _gc = GABLES[0], GABLES[1]
@@ -933,7 +935,7 @@ for gx, hw, apex, tag in GABLES:
         if tag == 'C' and sgn < 0:   # stop on the left gable's bargeboard
             b = a + (b - a) * ((a.x - X_VALLEY) / (a.x - b.x))
         bargeboard(f'barge{tag}{sgn}', a, b)   # round 10: pierced fretwork
-    fh = 0.40 if tag == 'L' else 0.15            # round 7: measured finial heights above the apex
+    fh = 0.40 if tag == 'L' else 0.24            # measured finial heights above the apex (C: 0.15 -> 0.24 in round 15b)
     turned_finial('finial', gx, -OV - 0.1, apex - 0.02, apex + fh, r=0.05 if tag == 'L' else 0.04)
     FINIAL_TOP[tag] = apex + fh
 # main front slope only behind the left gable (round 8b): it used to run through the centre-gable attic room
@@ -976,7 +978,7 @@ lm('gable_C_foot_R', (gxC + hwC + 0.14, -OV - 0.1, EAVE_Z + 0.03 - 0.08)); lm('g
 lm('finial_L_top', (gxL, -OV - 0.1, FINIAL_TOP['L'])); lm('gable_L_apex', (gxL, -OV - 0.1, apL + 0.08)); lm('gable_L_window', (X(1137), -OV - 0.07, Z(697)))
 lm('finial_end_L_top', (HIP_L, D * 0.45, RID + END_FIN['L'])); lm('finial_end_R_top', (HIP_R, D * 0.45, RID + END_FIN['R'])); lm('ridge_R_end', (HIP_R, D * 0.45, RID))
 lm('eave_L', (xL, -OV, EAVE_Z)); lm('eave_R', (xR, -OV, EAVE_Z))
-lm('attic_open_TL', (X(1295), y_open, Z(668))); lm('attic_open_BR', (X(1410), -0.1, F4 + 0.12))
+lm('attic_open_TL', (X(1295), y_open, Z(668))); lm('attic_open_BR', (XAR, -0.1, F4 + 0.12))
 for i, px in enumerate(POSTS):
     lm(f'post_{i + 1}_F3', (px, -0.13, F3 - 0.06)); lm(f'post_{i + 1}_F2', (px, -0.13, F2 - 0.06))
 lm('ground_C', (X(1255), -0.1, F1))
