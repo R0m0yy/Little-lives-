@@ -833,8 +833,11 @@ for side in (-1, 1):
     # lower pent roof
     bx('wingFascia', ((x0 + x1) / 2, -0.42, F2 - 0.06), (x1 - x0 + 0.3, 0.06, 0.1), M['trim'], 0.01)
     xo_low = X(1023) if side < 0 else X(1475)
-    slab('wingRoof1', [(xo_low, -0.45, F2 - 0.04), (xi, -0.45, F2 + 0.55), (xi, wd, F2 + 0.55), (xo_low, wd, F2 - 0.04)][:: (1 if side > 0 else -1)],
-         M['slate'], 0.05, 1.0)
+    # round 14: hipped pent roof — a front-facing slope (reads as slate from the tabletop camera) + the outer side slope
+    zt1 = F2 + 0.50; yr1 = 0.30; xh = xo_low + side * -0.42
+    slab('wingRoof1F', [(xo_low, -0.45, F2 - 0.04), (xi, -0.45, F2 - 0.04), (xi, yr1, zt1), (xh, yr1, zt1)][:: (-1 if side > 0 else 1)], M['slate'], 0.05, 1.0)
+    slab('wingRoof1', [(xo_low, -0.45, F2 - 0.04), (xh, yr1, zt1), (xh, wd, zt1), (xo_low, wd, F2 - 0.04)][:: (1 if side > 0 else -1)], M['slate'], 0.05, 1.0)
+    slab('wingRoof1T', [(xh, yr1, zt1), (xi, yr1, zt1), (xi, wd, zt1), (xh, wd, zt1)][:: (-1 if side > 0 else 1)], M['slate'], 0.05, 1.0)
     # upper bay with window
     box('bayFront', x0, x1, -0.02, 0.06, F2 + 0.5, F3, M['siding'], 0, 0.8)
     glazed('wingBay', x0 + 0.14, x1 - 0.14, -0.04, F2 + 0.72, F3 - 0.16, cols=2, rows=2)   # round 13: lit bay window
@@ -846,9 +849,14 @@ for side in (-1, 1):
     # small pediment over the upper wing roof
     pc = (x0 + x1) / 2
     pc = X(1058.3) if side < 0 else X(1445)
-    poly('wingPediment', [(x0, -0.27, F3 - 0.05), (x1, -0.27, F3 - 0.05), (pc, -0.27, Z(772))], M['shingle'], 0.04, 0.5)
-    for e0 in (x0, x1):
-        bargeboard('wingBarge', V((pc, -0.29, Z(772) + 0.02)), V((e0, -0.29, F3 - 0.05)), depth=0.12)
+    # round 14: narrower front gable so the outer slate slope shows beside it (board)
+    ga0, ga1 = pc - 0.40, pc + 0.40
+    poly('wingPediment', [(ga0, -0.27, F3 + 0.05), (ga1, -0.27, F3 + 0.05), (pc, -0.27, Z(772))], M['shingle'], 0.04, 0.5)
+    for gs, ge in ((-1, ga0), (1, ga1)):
+        slab('wingGableRoof', [(pc, -0.30, Z(772) + 0.03), (ge - gs * -0.05, -0.30, F3 + 0.02), (ge - gs * -0.05, wd * 0.6, F3 + 0.02), (pc, wd * 0.6, Z(772) + 0.03)][:: (1 if gs < 0 else -1)],
+             M['slate'], 0.04, 1.0)
+    for e0 in (ga0, ga1):
+        bargeboard('wingBarge', V((pc, -0.32, Z(772) + 0.02)), V((e0, -0.32, F3 + 0.05)), depth=0.11)
     turned_finial('wingFinial', pc, -0.25, Z(772) - 0.02, Z(763.5) + 0.035, r=0.035)
 
 # ------------------------------------------------------------------ roof
