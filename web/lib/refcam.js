@@ -10,7 +10,7 @@ import * as THREE from 'three';
 
 export const REF = {
   fovDeg: (2 * Math.atan(12 / 85) * 180) / Math.PI,
-  yawDeg: 17,          // she is turned toward her left => camera moves toward her right (-X)
+  yawDeg: 20,          // she is turned toward her left => camera moves toward her right (-X). Calibrated: 15/17/20 deg tested, 20 fits best
   elevDeg: 9,
   full: [1030, 85, 1205, 395],
   windows: { head: [1030, 85, 1185, 210], full: [1030, 85, 1205, 395] },
@@ -22,12 +22,14 @@ export const FACE_FIT = ['eye_R', 'eye_L', 'eye_R_outer', 'eye_R_inner', 'eye_L_
 function groupMeshes(root, test) { const out = []; root.traverse((o) => { if (o.isMesh && test(o.userData || {})) out.push(o); }); return out; }
 
 /** Project every vertex of meshes; returns [{x,y}] in full-frame pixels. */
-function projectVerts(meshes, camera, Wf, Hf) {
+function projectVerts(meshes, camera, Wf, Hf, keep = null) {
   const v = new THREE.Vector3(), out = [];
   for (const m of meshes) {
     const pos = m.geometry.attributes.position; m.updateMatrixWorld();
     for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).project(camera);
+      v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+      if (keep && !keep(v)) continue;
+      v.project(camera);
       out.push({ x: (v.x + 1) / 2 * Wf, y: (1 - v.y) / 2 * Hf });
     }
   }
@@ -41,6 +43,8 @@ export function measureLandmarks(root, camera, Wf, Hf) {
   const out = {};
   root.traverse((o) => { if (o.name && o.name.startsWith('LM_')) { o.updateMatrixWorld(); out[o.name.slice(3)] = projectPoint(o.getWorldPosition(new THREE.Vector3()), camera, Wf, Hf); } });
   const head = projectVerts(groupMeshes(root, (u) => u.ll_group === 'head'), camera, Wf, Hf);
+  // chin: lowest point of the FRONT half of the head (the jaw underside is hidden by neck/collar)
+  const headFront = projectVerts(groupMeshes(root, (u) => u.ll_group === 'head'), camera, Wf, Hf, (w) => w.z > 0.02);
   const hair = projectVerts(groupMeshes(root, (u) => u.ll_group === 'hair'), camera, Wf, Hf);
   const bun = projectVerts(groupMeshes(root, (u) => u.ll_group === 'bun'), camera, Wf, Hf);
   const earR = projectVerts(groupMeshes(root, (u) => u.ll_group === 'ear' && u.ll_side === 'R'), camera, Wf, Hf);
@@ -48,7 +52,7 @@ export function measureLandmarks(root, camera, Wf, Hf) {
   if (hair.length) out.hair_top = ext(hair, 'y', -1);
   if (bun.length) out.bun_top = ext(bun, 'y', -1);
   if (head.length) {
-    out.chin = ext(head, 'y', 1);
+    out.chin = ext(headFront, 'y', 1);
     const ny = out.nose_tip ? out.nose_tip.y : out.chin.y - 20, my = out.mouth_centre ? out.mouth_centre.y : ny + 8;
     const band = head.filter((p) => p.y >= ny && p.y <= my + 0.3 * (out.chin.y - my));
     if (band.length) { out.cheek_R = ext(band, 'x', -1); out.cheek_L = ext(band, 'x', 1); }

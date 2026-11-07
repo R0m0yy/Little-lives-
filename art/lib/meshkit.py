@@ -46,7 +46,7 @@ _imgs = {}
 
 def material(name, base='#cccccc', rough=0.5, metal=0.0, coat=0.0, coat_rough=0.05, sheen=0.0, sheen_tint='#ffffff',
              sheen_rough=0.5, aniso=0.0, aniso_rot=0.0, tex=None, vcol=False, spec=0.5, emission=None, emission_strength=0.0,
-             transmission=0.0, ior=1.45, alpha=1.0, double=True):
+             transmission=0.0, ior=1.45, alpha=1.0, double=True, normal_tex=None, normal_strength=1.0, tex_mult=None):
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
@@ -76,10 +76,22 @@ def material(name, base='#cccccc', rough=0.5, metal=0.0, coat=0.0, coat_rough=0.
         tn = nt.nodes.new('ShaderNodeTexImage')
         tn.image = img
         nt.links.new(tn.outputs['Color'], p.inputs['Base Color'])
+        if tex_mult:   # base colour = texture x colour factor
+            mn = nt.nodes.new('ShaderNodeMix'); mn.data_type = 'RGBA'; mn.blend_type = 'MULTIPLY'; mn.inputs['Factor'].default_value = 1.0
+            nt.links.new(tn.outputs['Color'], mn.inputs['A']); mn.inputs['B'].default_value = col(tex_mult)
+            nt.links.new(mn.outputs['Result'], p.inputs['Base Color'])
     elif vcol:
         cn = nt.nodes.new('ShaderNodeVertexColor')
         cn.layer_name = 'Col'
         nt.links.new(cn.outputs['Color'], p.inputs['Base Color'])
+    if normal_tex:
+        nimg = _imgs.get(normal_tex) or bpy.data.images.load(normal_tex)
+        _imgs[normal_tex] = nimg
+        nimg.colorspace_settings.name = 'Non-Color'
+        nimg.pack()
+        nn = nt.nodes.new('ShaderNodeTexImage'); nn.image = nimg
+        nm = nt.nodes.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = normal_strength
+        nt.links.new(nn.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], p.inputs['Normal'])
     m.use_backface_culling = not double
     return m
 

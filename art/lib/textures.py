@@ -266,3 +266,61 @@ def flowerbed(path, W=512, H=128, seed=8):
         c = rnd.choice([(236, 120, 170), (250, 240, 244), (220, 80, 120), (250, 200, 220), (200, 120, 220)])
         d.ellipse((x - 3, y - 3, x + 3, y + 3), fill=c)
     im.filter(ImageFilter.GaussianBlur(0.6)).save(path)
+
+
+# ------------------------------------------------------------------ head v2 (round 26+)
+def iris2(path, S=1024, iris_frac=0.83, pupil_frac=0.40, seed=12):
+    """Eye texture, planar front projection ((0.5,0.5) = gaze axis; radius 0.5 = eyeball silhouette).
+    Dark pupil, radial fibres, blue-grey outer ring, dark limbal ring, near-white sclera, painted catch-lights:
+    big soft one upper-left, small second one lower-right (image space, same for both eyes)."""
+    import numpy as np
+    rnd = np.random.default_rng(seed)
+    yy, xx = np.mgrid[0:S, 0:S]
+    u = (xx + 0.5) / S * 2 - 1
+    v = -((yy + 0.5) / S * 2 - 1)          # +v = up
+    r = np.hypot(u, v); a = np.arctan2(v, u)
+    ir, pr = iris_frac, pupil_frac * iris_frac
+    t = np.clip((r - pr) / (ir - pr), 0, 1)
+    fib = np.zeros_like(r)
+    for k in (37, 61, 97, 143):
+        fib += np.sin(a * k + rnd.uniform(0, 6.28)) * rnd.uniform(0.3, 1.0)
+    fib = fib / 4
+    dark = np.array([12, 11, 16.]); mid = np.array([38, 44, 60.]); ring = np.array([96, 116, 142.]); lim = np.array([10, 10, 14.])
+    sclera = np.array([246, 241, 238.])
+    c = dark + (mid - dark) * (np.clip(t * 1.4, 0, 1) ** 1.2)[..., None]
+    rk = np.exp(-((t - 0.80) / 0.11) ** 2 / 2) * (0.85 + 0.15 * fib)
+    c = c * (1 - rk[..., None]) + ring * rk[..., None]
+    low = np.clip(-v / ir, 0, 1) ** 1.5 * (t > 0)                       # lower iris lit through the cornea
+    c = c + np.array([40, 46, 60.]) * (low * 0.6)[..., None]
+    c = c * (1 + 0.10 * fib[..., None])
+    limb = np.exp(-((r - ir) / 0.018) ** 2 / 2)
+    c = c * (1 - limb[..., None]) + lim * limb[..., None]
+    c = np.where((r < pr)[..., None], np.array([5, 5, 7.]), c)
+    edge = np.clip((r - ir) / 0.02, 0, 1)[..., None]
+    sc = sclera * (1 - 0.10 * np.clip((r - 0.86) / 0.14, 0, 1)[..., None]) + np.array([222, 176, 168.]) * 0.10 * np.clip((r - 0.86) / 0.14, 0, 1)[..., None]
+    c = c * (1 - edge) + sc * edge
+    for cx, cy, rr, s in ((-0.30, 0.34, 0.17, 1.0), (0.30, -0.26, 0.065, 0.95)):
+        d = np.hypot((u - cx) / rr, (v - cy) / (rr * 0.92))
+        h = np.clip(1.3 - d, 0, 1) ** 1.2 * s
+        c = c * (1 - h[..., None]) + 255 * h[..., None]
+    Image.fromarray(np.clip(c, 0, 255).astype('uint8')).filter(ImageFilter.GaussianBlur(0.8)).save(path)
+
+
+def hair_strands(color_path, normal_path, S=512, seed=13):
+    """Tileable strand-direction texture (strands run along U) + tangent-space normal map from its height field."""
+    import numpy as np
+    rnd = np.random.default_rng(seed)
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+    u, v = xx / S, yy / S
+    h = np.zeros((S, S), np.float32)
+    for k in range(60):
+        f = rnd.integers(8, 90); ph = rnd.uniform(0, 6.283); drift = rnd.uniform(-0.6, 0.6); amp = rnd.uniform(0.2, 1.0) / (1 + f / 30)
+        h += amp * np.sin(2 * np.pi * (f * v + drift * np.sin(2 * np.pi * u) * 0.15) + ph)
+    h = (h - h.min()) / (h.max() - h.min())
+    col = 0.93 + 0.12 * h
+    Image.fromarray((np.clip(col, 0, 1) * 255).astype('uint8')).convert('RGB').save(color_path)
+    dv = (np.roll(h, -1, 0) - np.roll(h, 1, 0)) * S / 2 / 18.0
+    du = (np.roll(h, -1, 1) - np.roll(h, 1, 1)) * S / 2 / 60.0
+    n = np.stack([-du, dv, np.ones_like(h)], -1)
+    n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    Image.fromarray(((n * 0.5 + 0.5) * 255).astype('uint8')).save(normal_path)

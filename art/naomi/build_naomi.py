@@ -1,16 +1,19 @@
-"""Little Lives — Naomi (mother, 36). Procedural Blender build -> assets/characters/naomi.glb
+"""Little Lives — Naomi (mother, 36). Procedural Blender build -> assets/characters/naomi.glb (+ naomi_game.glb)
 
 usage: python3 art/naomi/build_naomi.py [out.glb]
-Proportions measured from refs/design_board.png (Naomi ~290 px tall => H = 1.0 here):
-  hair top 1.00, chin .652, eye line .783, brows .838, nose .734, mouth .700, collar .645,
-  waist .474, skirt hem .13, underskirt .095, shoe top .045; head width .29; skirt hem half-width .25.
+Head + hair are rebuilt from round 26 (art/naomi/head.py, art/naomi/hair.py) against refs/naomi_landmarks.json
+through the reference camera (web/lib/refcam.js). Body/outfit unchanged from round 25 (figure height 1.0).
 """
 import math, os, sys, random
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy
 from mathutils import Vector as V, Matrix
 import meshkit as K
 import textures as TX
+import numpy as np
+import head as HEAD
+import hair as HAIR
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].endswith('.glb') else os.path.join(ROOT, 'assets/characters/naomi.glb')
@@ -19,18 +22,11 @@ os.makedirs(TEX, exist_ok=True)
 
 # ------------------------------------------------------------------ parameters (tuned in compare rounds)
 P = dict(
-    head_c=V((0, 0.0, 0.800)), head_rx=0.162, head_ry=0.142, head_rz_top=0.146, head_rz_bot=0.146,
-    cheek_amp=0.13, cheek_low=-0.40, chin_narrow=0.10,
-    eye_x=0.065, eye_z=0.778, eye_r=0.050, eye_depth=0.62, eye_out=0.10,
-    lid_up=35, lid_low=-42, lid_corner=4,
-    brow_z=0.834,
-    mouth_z=0.703, nose_z=0.742,
     collar_z=0.645, waist_z=0.474, hem_z=0.128, hem_rx=0.235, hem_ry=0.205,
     shoulder=V((0.100, 0.0, 0.598)), elbow=V((0.153, 0.006, 0.456)), wrist=V((0.182, -0.078, 0.346)),
     hand_c=V((0.185, -0.094, 0.322)),   # hands rest on the front-sides of the skirt (round 10: were buried inside it)
-    bun_c=V((-0.150, 0.060, 0.868)), bun_r=0.078,
 )
-C = P['head_c']
+C = HEAD.H['C']
 rnd = random.Random(7)
 
 K.reset()
@@ -41,24 +37,21 @@ TX.floral(os.path.join(TEX, 'apron.png'), seed=9, base=(232, 224, 218), density=
 TX.lace(os.path.join(TEX, 'lace.png'))
 TX.trim(os.path.join(TEX, 'trim.png'))
 TX.weave(os.path.join(TEX, 'weave.png'))
-TX.iris(os.path.join(TEX, 'iris.png'))
+TX.iris2(os.path.join(TEX, 'iris2.png'))
+TX.hair_strands(os.path.join(TEX, 'hair_strands.png'), os.path.join(TEX, 'hair_normal.png'))
 
 # ------------------------------------------------------------------ materials (names drive Three.js tuning in web/lib/look.js)
 M = dict(
-    skin=K.material('skin', vcol=True, rough=0.55, sheen=0.15, sheen_tint='#ff8a5a', spec=0.45),
-    skinPlain=K.material('skin_body', base=(0.70, 0.27, 0.13, 1), rough=0.55, sheen=0.15, sheen_tint='#ff8a5a', spec=0.45),
-    eye=K.material('eye', tex=os.path.join(TEX, 'iris.png'), rough=0.08, coat=1.0, coat_rough=0.0, spec=0.6),
-    lash=K.material('lash', base='#160d0b', rough=0.5),
-    brow=K.material('hair_brow', base='#3a2218', rough=0.7),
-    cornea=K.material('cornea', base='#ffffff', rough=0.0, coat=1.0, coat_rough=0.0, alpha=0.15),
-    crease=K.material('skin_crease', base='#9a4a30', rough=0.6),
-    lip=K.material('skin_lip', base='#c4604e', rough=0.38, spec=0.55),
-    mouth=K.material('skin_mouth', base='#7a2a22', rough=0.6),
-    hair=K.material('hair', base='#120b0c', rough=0.30, aniso=0.65, spec=0.65, sheen=0.15, sheen_tint='#56627e', sheen_rough=0.4),
-    hairCap=K.material('hair_cap', base='#060304', rough=0.6, aniso=0.2, spec=0.35),
-    bun=K.material('hair_bun', base='#3a2016', rough=0.36, aniso=0.5, spec=0.55, sheen=0.35, sheen_tint='#c08060', sheen_rough=0.45),
-    hairHi=K.material('hair_hi', base='#3a2216', rough=0.30, aniso=0.65, spec=0.65, sheen=0.25, sheen_tint='#c08a60', sheen_rough=0.4),
-    bunHi=K.material('hair_bunHi', base='#6a3a22', rough=0.34, aniso=0.5, spec=0.55, sheen=0.4, sheen_tint='#e0a070', sheen_rough=0.4),
+    skin=K.material('skin_face', base='#d6886a', rough=0.55, sheen=0.25, sheen_tint='#ff9a70', spec=0.45),   # texture assigned after painting
+    skinPlain=K.material('skin_body', base='#c87a5a', rough=0.55, sheen=0.25, sheen_tint='#ff9a70', spec=0.45),
+    eye=K.material('eye', tex=os.path.join(TEX, 'iris2.png'), rough=0.12, spec=0.5),
+    cornea=K.material('cornea', base='#ffffff', rough=0.0, transmission=1.0, ior=1.376, spec=0.8),
+    lash=K.material('lash', base='#120b0a', rough=0.55),
+    lidline=K.material('skin_lidline', base='#8a4a36', rough=0.6),
+    hair=K.material('hair', tex=os.path.join(TEX, 'hair_strands.png'), tex_mult='#1b1412', rough=0.38, spec=0.55,
+                    normal_tex=os.path.join(TEX, 'hair_normal.png'), normal_strength=0.25),
+    bun=K.material('hair_bun', tex=os.path.join(TEX, 'hair_strands.png'), tex_mult='#1e1512', rough=0.40, spec=0.55,
+                   normal_tex=os.path.join(TEX, 'hair_normal.png'), normal_strength=0.25),
     blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.85, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     apron=K.material('fabric_apron', tex=os.path.join(TEX, 'apron.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
     floral=K.material('fabric_floral', tex=os.path.join(TEX, 'floral.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
@@ -72,469 +65,9 @@ M = dict(
 )
 
 
-# ================================================================== HEAD
-def gauss(d, c, s):
-    a = d.angle(c.normalized()) if d.length > 0 else 0
-    return math.exp(-(a * a) / (2 * s * s))
-
-
-def eye_dir(sign):
-    return V((sign * P['eye_x'] / P['head_rx'] * 0.92, -0.86, (P['eye_z'] - C.z) / P['head_rz_top'])).normalized()
-
-
-def head_raw(d):
-    """Unit direction (front = -Y) -> head surface point (before fine bumps)."""
-    h = d.z
-    rz = P['head_rz_top'] if h > 0 else P['head_rz_bot']
-    horiz = math.sqrt(max(0.0, 1 - h * h))
-    s = horiz * (1 + P['cheek_amp'] * math.exp(-((h - P['cheek_low']) ** 2) / (2 * 0.33 ** 2))) - 0.05 * max(h, 0) ** 2 * horiz
-    s *= 1 - P['chin_narrow'] * K.smoothstep(-0.55, -1.0, h)
-    hd = V((d.x, d.y, 0))
-    hd = hd.normalized() if hd.length > 1e-9 else V((0, -1, 0))
-    p = V((hd.x * s * P['head_rx'], hd.y * s * P['head_ry'], h * rz))
-    # flatter back of skull, rounder front face
-    if p.y > 0:
-        p.y *= 0.95
-    return C + p
-
-
-BUMPS = [  # (direction, amplitude (fraction of radius), sigma radians)
-    (V((0.52, -0.78, -0.42)), 0.090, 0.30), (V((-0.52, -0.78, -0.42)), 0.090, 0.30),  # apple cheeks (fuller, round 22)
-    (V((0, -0.97, -0.37)), 0.055, 0.052),   # nose button (smaller, round 22)
-    (V((0, -0.96, -0.22)), 0.012, 0.05),    # soft bridge
-    (V((0.065, -0.96, -0.41)), 0.014, 0.032), (V((-0.065, -0.96, -0.41)), 0.014, 0.032),   # nostril wings
-    (V((0.045, -0.96, -0.425)), -0.010, 0.028), (V((-0.045, -0.96, -0.425)), -0.010, 0.028),  # nostril dimples
-    (V((0, -0.95, -0.62)), 0.012, 0.12),    # chin pad
-    (V((0, -0.94, -0.53)), -0.010, 0.07),   # mouth line
-    (V((0, -0.85, 0.45)), 0.02, 0.4),       # forehead fullness
-]
-
-
-def head_point(d):
-    p = head_raw(d)
-    k = 1.0
-    for c, a, s in BUMPS:
-        k += a * gauss(d, c, s)
-    for sg in (1, -1):  # eye sockets
-        k -= 0.022 * gauss(d, eye_dir(sg), 0.20)   # shallow socket: no dark under-eye hollow
-    return C + (p - C) * k
-
-
-def blush(p):
-    d = (p - C).normalized()
-    w = max(gauss(d, V((0.53, -0.77, -0.44)), 0.24), gauss(d, V((-0.53, -0.77, -0.44)), 0.24))   # soft apple-cheek blush (round 25)
-    lip = gauss(d, V((0, -0.93, -0.555)), 0.07) * 0.8
-    base = (0.70, 0.27, 0.13)  # linear ~ #db8f64 (warm saturated tan)
-    bl = (0.80, 0.18, 0.11)
-    li = (0.62, 0.17, 0.13)
-    c = [base[i] * (1 - w * 0.78) + bl[i] * w * 0.78 for i in range(3)]
-    c = [c[i] * (1 - lip) + li[i] * lip for i in range(3)]
-    tip = gauss(d, V((0, -0.97, -0.37)), 0.055) * 0.70            # rosy nose tip
-    tip = max(tip, gauss(d, V((0, -0.93, -0.68)), 0.09) * 0.25)   # a little warmth on the chin
-    under = gauss(d, V((0, -0.95, -0.445)), 0.035) * 0.35         # soft shadow under the nose
-    c = [c[i] * (1 - tip) + bl[i] * tip for i in range(3)]
-    c = [c[i] * (1 - under * 0.55) for i in range(3)]
-    return (*c, 1.0)
-
-
-def sphere_dir(u, v):
-    th, ph = u * K.TAU, v * math.pi
-    return V((math.sin(ph) * math.sin(th), -math.sin(ph) * math.cos(th), math.cos(ph)))
-
-
-def bake_head_tex(path, W=512, Hh=256):
-    from PIL import Image
-    im = Image.new('RGB', (W, Hh)); px = im.load()
-    lin2s = lambda c: int(255 * (c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055))
-    for y in range(Hh):
-        for x in range(W):
-            c = blush(head_point(sphere_dir((x + 0.5) / W, (y + 0.5) / Hh)))
-            px[x, y] = tuple(lin2s(c[i]) for i in range(3))  # PIL row 0 = top = UV v 1 = sphere top
-    im.save(path)
-
-
-bake_head_tex(os.path.join(TEX, 'face.png'))
-M['skin'] = K.material('skin_face', tex=os.path.join(TEX, 'face.png'), rough=0.55, sheen=0.15, sheen_tint='#ff8a5a', spec=0.45)
-head = K.surface('Head', lambda u, v: head_point(sphere_dir(u, v)), 96, 72, wrap_u=True, mat=M['skin'],
-                 uv=lambda i, j: (j / 96, 1 - i / 71))
-K.subsurf(head, 1)
-
-# ears
-for sg in (1, -1):
-    ec = head_raw(V((sg * 0.98, 0.05, -0.32)).normalized()) + V((sg * -0.006, 0.006, 0))
-    R = Matrix.Rotation(sg * 0.35, 3, 'Z')
-    ear = K.ellipsoid(f'Ear{sg}', ec, (0.013, 0.022, 0.030), mat=M['skinPlain'], rot=R,
-                      disp=lambda d: 1 - 0.25 * math.exp(-((d.x * sg + 0.9) ** 2) / 0.05) * (abs(d.z) < 0.7))
-    K.subsurf(ear, 1)
-    # gold drop earring
-    ep = ec + V((sg * 0.004, -0.004, -0.032))
-    K.subsurf(K.ellipsoid(f'EarringHook{sg}', ep + V((0, 0, 0.006)), (0.0028, 0.0028, 0.006), mat=M['gold'], nu=12, nv=8), 1)
-    K.subsurf(K.ellipsoid(f'Earring{sg}', ep - V((0, 0, 0.004)), (0.0065, 0.0065, 0.009), mat=M['gold'], nu=16, nv=10), 1)
-
-
-# ------------------------------------------------------------------ eyes
-BROW_MID = {}
-def eye_frame(sg):
-    f = eye_dir(sg)
-    f = (f + V((sg * P['eye_out'], 0, 0))).normalized()  # gaze slightly outward from socket normal -> forward-ish
-    f = (V((0, -1, 0)) * 0.75 + f * 0.25).normalized()  # mostly forward gaze
-    surf = head_raw(eye_dir(sg))
-    c = surf - (surf - C).normalized() * P['eye_r'] * P['eye_depth']
-    up = V((0, 0, 1))
-    r = up.cross(f).normalized() * -1  # points to character's left (+X) for forward f=-Y
-    if sg < 0:
-        r = -r  # 'outer' side for each eye
-    u = f.cross(r).normalized() * (1 if sg > 0 else -1)
-    if u.z < 0:
-        u = -u
-    return c, f, r, u
-
-
-for sg in (1, -1):
-    c, f, r, u = eye_frame(sg)
-    er = P['eye_r']
-
-    def eyeball(uu, vv, c=c, f=f, r=r, u=u):
-        th, ph = uu * K.TAU, vv * math.pi
-        dl = V((math.sin(ph) * math.cos(th), math.sin(ph) * math.sin(th), math.cos(ph)))  # local: z=forward
-        return c + (r * dl.x + u * dl.y + f * dl.z) * er
-
-    def eye_uv(i, j, n=48, m=32, r=r, u=u):
-        th, ph = j / n * K.TAU, i / (m - 1) * math.pi
-        x, y = math.sin(ph) * math.cos(th), math.sin(ph) * math.sin(th)
-        return (0.5 + x * 0.5 * (1 if sg > 0 else -1), 0.5 + y * 0.5)
-    K.subsurf(K.surface(f'Eye{sg}', eyeball, 48, 32, wrap_u=True, mat=M['eye'], uv=eye_uv), 1)
-    # cornea: clear glossy shell with a slight forward bulge -> cool environment reflection over the iris
-    def cornea(uu, vv, c=c, f=f, r=r, u=u):
-        th, ph = uu * K.TAU, vv * math.pi
-        dl = V((math.sin(ph) * math.cos(th), math.sin(ph) * math.sin(th), math.cos(ph)))
-        bulge = 1.0 + 0.06 * max(0.0, dl.z) ** 3
-        return c + (r * dl.x + u * dl.y + f * dl.z) * er * 1.012 * bulge
-    K.subsurf(K.surface(f'Cornea{sg}', cornea, 40, 24, wrap_u=True, mat=M['cornea']), 1)
-
-    # lids: shells around the eyeball, aperture edges at lid_up / lid_low degrees
-    am = math.radians(78)
-    bc = math.radians(P['lid_corner'])
-
-    def edge(a, top):
-        e = math.radians(P['lid_up'] if top else P['lid_low'])
-        k = math.sqrt(max(0.0, 1 - (a / am) ** 2))
-        # outer corner (a>0) slightly lifted, inner corner lower
-        corner = bc + (0.08 if a < 0 else -0.05) * abs(a / am)   # a < 0 = outer corner (lifted)
-        return corner + (e - corner) * k
-
-    def lid(top, c=c, f=f, r=r, u=u):
-        def g(uu, vv):
-            a = (uu * 2 - 1) * math.radians(92)
-            e = edge(max(-am, min(am, a)), top)
-            far = math.radians(62) if top else math.radians(-48)
-            b = e + (far - e) * vv
-            band = abs(b - e)
-            R = er * (1.030 + (0.035 if top else 0.014) * K.smoothstep(0.0, math.radians(12 if top else 7), band))
-            return c + (f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)) * R
-        return g
-    for top in (True, False):
-        K.subsurf(K.surface(f'Lid{"U" if top else "L"}{sg}', lid(top), 40, 12, mat=M['skinPlain'], orient=c), 1)
-
-    # upper lash line: thick, heavier toward the outer corner, with a flick
-    pts, nrm = [], []
-    for k in range(40):
-        a = (0.92 - 1.98 * k / 39) * am   # runs inner -> outer so the line thickens toward the outer corner
-        b = edge(max(-am, min(am, a)), True) + math.radians(2)
-        d = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
-        pts.append(c + d * er * 1.075)
-        nrm.append(d)
-    K.subsurf(K.sweep(f'Lash{sg}', pts, lambda t: (0.0058 + 0.0060 * t ** 1.4, 0.0024 + 0.0026 * t), nprof=8, mat=M['lash'], normals=nrm), 1)
-    for k, (a0, ln, curl) in enumerate([(1.00, 0.036, 0.9)] + [(0.28 + 0.08 * i, 0.010 + 0.0016 * i, 0.5) for i in range(8)]):   # outer flick + feathered lashes
-        a = -a0 * am   # outer side
-        b = edge(max(-am, a), True)
-        d0 = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
-        p0 = c + d0 * er * 1.07
-        tip_dir = (-r * 0.9 + u * 0.6 + f * 0.2).normalized()
-        lp = [p0 + (tip_dir * t * ln + u * (t * t) * ln * curl * 0.5) for t in [i / 7 for i in range(8)]]
-        w0 = 0.0052 if k == 0 else 0.0026
-        K.subsurf(K.sweep(f'LashFlick{sg}{k}', lp, lambda t, w0=w0: (w0 * (1 - t) ** 0.8 + 0.0003, w0 * 0.45 * (1 - t) + 0.0002), nprof=8, mat=M['lash'], up=f), 1)
-    # lid crease: soft darker line above the upper lid
-    pts, nrm = [], []
-    for k in range(30):
-        a = (-0.75 + 1.55 * k / 29) * am
-        b = edge(max(-am, min(am, a)), True) + math.radians(17 + 4 * (1 - abs(a / am)))
-        d = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
-        pts.append(c + d * er * 1.075); nrm.append(d)
-    K.subsurf(K.sweep(f'Crease{sg}', pts, lambda t: (0.0008, 0.0016 * math.sin(math.pi * t) + 0.0002), nprof=6, mat=M['crease'], normals=nrm), 1)
-    # lower lid: subtle line
-    pts = []
-    for k in range(24):
-        a = (-0.7 + 1.55 * k / 23) * am
-        b = edge(max(-am, min(am, a)), False) - math.radians(3)
-        pts.append(c + (f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)) * er * 1.05)
-    K.sweep(f'LashLow{sg}', pts, lambda t: (0.0007 * math.sin(math.pi * t) + 0.0002, 0.0006), nprof=6, mat=M['lash'], up=f)
-
-    # eyebrow: short, thick, arched; follows the head surface
-    bp, bn = [], []
-    for k in range(20):
-        t = k / 19
-        x = sg * (0.030 + 0.085 * t)
-        z = P['brow_z'] + 0.020 * math.sin(math.pi * (0.20 + 0.80 * t)) - 0.014 * t   # stronger arch (round 24)
-        d = V((x / P['head_rx'], -0.80, (z - C.z) / P['head_rz_top'])).normalized()
-        for _ in range(4):  # project onto the surface (fixed point on height)
-            pp = head_point(d)
-            d = V((x - C.x, (d.y / max(1e-6, abs(d.y))) * 1, 0))
-            d = V((x / P['head_rx'], -math.sqrt(max(0.05, 1 - (x / P['head_rx']) ** 2 - ((z - C.z) / P['head_rz_top']) ** 2)), (z - C.z) / P['head_rz_top'])).normalized()
-        pp = head_point(d)
-        bp.append(pp + (pp - C).normalized() * 0.003)
-        bn.append((pp - C).normalized())
-    BROW_MID[sg] = bp[len(bp) // 2]
-    K.subsurf(K.sweep(f'Brow{sg}', bp, lambda t: (0.0036, 0.0088 * (1 - 0.45 * t) * min(1, t * 6 + 0.35)), nprof=8, mat=M['brow'], normals=bn), 1)
-
-# mouth: soft closed smile — darker line curving up at the corners, fuller lower lip, thin upper lip
-def on_face(x, z, lift):
-    d = V((x / P['head_rx'], -0.97, (z - C.z) / P['head_rz_bot'])).normalized()
-    pp = head_point(d)
-    n = (pp - C).normalized()
-    return pp + n * lift, n
-
-
-def face_curve(name, fx, fz, n, lift, prof, mat):
-    pts, nrm = [], []
-    for k in range(n):
-        t = k / (n - 1) * 2 - 1
-        p, nn = on_face(fx(t), fz(t), lift(t) if callable(lift) else lift)
-        pts.append(p); nrm.append(nn)
-    return K.subsurf(K.sweep(name, pts, prof, nprof=10, mat=mat, normals=nrm), 1)
-
-
-MZ = P['mouth_z']
-face_curve('MouthLine', lambda t: t * 0.020, lambda t: MZ + 0.0062 * t ** 2 - 0.0012 + 0.0025 * abs(t) ** 6, 24, 0.0008,
-           lambda t: (0.0007, 0.0010 * (0.4 + 0.6 * math.sin(math.pi * t))), M['mouth'])
-face_curve('LipLower', lambda t: t * 0.0135, lambda t: MZ - 0.0050 + 0.0022 * t ** 2, 20, lambda t: 0.0012 + 0.0018 * (1 - t * t),
-           lambda t: (0.0030 * math.sin(math.pi * t) ** 0.7 + 0.0003, 0.0040 * math.sin(math.pi * t) ** 0.6 + 0.0004), M['lip'])
-face_curve('LipUpper', lambda t: t * 0.0155, lambda t: MZ + 0.0022 + 0.0042 * t ** 2 - 0.0010 * math.exp(-t * t / 0.02), 20, 0.0010,
-           lambda t: (0.0013 * math.sin(math.pi * t) ** 0.7 + 0.0002, 0.0022 * math.sin(math.pi * t) ** 0.6 + 0.0003), M['lip'])
-for sg in (1, -1):  # smile dimples at the corners
-    p, n = on_face(sg * 0.0215, MZ + 0.0058, 0.0005)
-    K.subsurf(K.ellipsoid(f'Dimple{sg}', p, (0.0016, 0.0016, 0.0016), mat=M['mouth'], nu=10, nv=6), 1)
-
-# ================================================================== HAIR
-BUN = P['bun_c']
-bun_dir = (BUN - C).normalized()
-
-
-def hair_keep(d):
-    fx, fy, fz = d.x, -d.y, d.z
-    hl = 0.60 - 0.70 * fx * fx
-    keep_face = max(fz - hl, 0.22 - fy)
-    keep_ear = max(0.74 - abs(fx), fz + 0.10, -0.30 - fy)
-    keep_nape = fz + 0.58
-    return min(keep_face, keep_ear, keep_nape)
-
-
-def hair_thick(d):
-    t = 0.04 + 0.18 * max(0, d.z) ** 1.6 + 0.05 * max(0, d.y) + 0.04 * abs(d.x)
-    t += 0.10 * gauss(d, V((0.18, -0.45, 0.85)), 0.40)       # pompadour lift above the parting       # lift above the parting / forehead
-    return t
-
-
-def _flow_basis():
-    a = bun_dir
-    e1 = V((0, -1, 0)) - a * a.dot(V((0, -1, 0)))
-    e1.normalize()
-    return a, e1, a.cross(e1)
-
-
-FLOW = _flow_basis()
-
-
-def clump(d, n=11, depth=0.25):
-    """Sculpted clumps: rounded lobes with sharp valleys, flowing along great circles into the bun."""
-    a, e1, e2 = FLOW
-    psi = math.atan2(d.dot(e2), d.dot(e1))
-    ph = n * psi / 2 + 0.7 * math.sin(3 * psi) + 0.45 * math.sin(5 * psi + 1.3)  # irregular clump widths
-    lobe = abs(math.sin(ph)) ** 0.45                                               # round top, V-shaped valley
-    conv = K.smoothstep(0.985, 0.62, d.dot(a))                                     # clumps merge into the bun
-    return 1 - depth * (1 - lobe) * conv
-
-
-def cap_point(d, lift=0.0):
-    kp = hair_keep(d)
-    back = K.smoothstep(-0.2, 0.4, d.y)   # behind the ears / nape: taper gently instead of a hard lip (round 23)
-    k = K.smoothstep(-0.01, 0.06 + 0.22 * back, kp)
-    sink = 0.05 * K.smoothstep(0.0, -0.08, kp)  # outside the hairline the cap dives under the skin -> smooth hairline
-    p = head_point(d)
-    return C + (p - C) * (1 + hair_thick(d) * k * clump(d) - sink + lift)
-
-
-NU, NV = 160, 110
-cap_rows = [[cap_point(sphere_dir(j / NU, i / (NV - 1))) for j in range(NU)] for i in range(NV)]
-cap = K.build('HairCap', cap_rows, wrap_u=True, mat=M['hairCap'], orient=C,
-              keep=lambda i, j: hair_keep(sphere_dir((j + 0.5) / NU, (i + 0.5) / (NV - 1))) > -0.14)
-K.subsurf(cap, 1)
-
-
-def slerp(a, b, t):
-    om = a.angle(b)
-    if om < 1e-6:
-        return a.copy()
-    return (a * math.sin((1 - t) * om) + b * math.sin(t * om)) / math.sin(om)
-
-
-def strand_to_bun(name, d0, width, thick, lift0=0.004, via=None, n=36, mat=None, end_lift=0.0):
-    pts, nrm = [], []
-    for k in range(n):
-        t = k / (n - 1)
-        if via is not None:
-            d = slerp(d0, via, t / 0.5).normalized() if t < 0.5 else slerp(via, bun_dir, (t - 0.5) / 0.5).normalized()
-        else:
-            d = slerp(d0, bun_dir, t).normalized()
-        p = cap_point(d, lift0 + 0.004 * math.sin(math.pi * t) + end_lift * t)
-        pts.append(p)
-        nrm.append((p - C).normalized())
-    taper = lambda t: (thick * (0.35 + 0.65 * math.sin(math.pi * min(1, t * 1.1)) ** 0.4),
-                       width * (0.25 + 0.75 * math.sin(math.pi * min(1.0, 0.08 + t)) ** 0.5))
-    ob = K.sweep(name, pts, taper, nprof=10, mat=mat or M['hair'], normals=nrm, uv_len=4)
-    return ob
-
-
-def dirs_path(ws, n):
-    """Piecewise slerp through unit-direction waypoints."""
-    out = []
-    seg = len(ws) - 1
-    for k in range(n):
-        t = k / (n - 1) * seg
-        i = min(int(t), seg - 1)
-        out.append(slerp(ws[i], ws[i + 1], t - i).normalized())
-    return out
-
-
-def strand(name, ds, width, thick, lift, mat, n=None, wave=0.0, seed=0):
-    """Thin tapered hair strand riding over the cap along unit directions ds."""
-    r = random.Random(seed)
-    ph = r.random() * K.TAU
-    pts, nrm = [], []
-    m = len(ds)
-    for k, d in enumerate(ds):
-        t = k / (m - 1)
-        p = cap_point(d, lift * math.sin(math.pi * t) ** 0.8)   # ends tuck into the cap (no shingled tips)
-        nn = (p - C).normalized()
-        pts.append(p + nn * wave * math.sin(t * 9 + ph) * math.sin(math.pi * t)); nrm.append(nn)
-    prof = lambda t: (thick * (0.25 + 0.75 * math.sin(math.pi * min(1, 0.03 + t)) ** 0.5),
-                      width * (0.15 + 0.85 * math.sin(math.pi * min(1, 0.05 + t * 0.98)) ** 0.7))
-    return K.sweep(name, pts, prof, nprof=6, mat=mat, normals=nrm, uv_len=6)
-
-
-def jitter(d, amt, r):
-    return (d + V((r.uniform(-amt, amt), r.uniform(-amt, amt), r.uniform(-amt, amt)))).normalized()
-
-
-# (a) scalp strands: ~130 thin strands from hairline/crown flowing into the bun, over a darker cap
-sr = random.Random(21)
-golden = math.pi * (3 - math.sqrt(5))
-NS = 1400
-count = 0
-for k in range(NS):
-    zz = 1 - 2 * (k + 0.5) / NS
-    rr = math.sqrt(1 - zz * zz)
-    d0 = V((math.cos(golden * k) * rr, math.sin(golden * k) * rr, zz))
-    kp = hair_keep(d0)
-    if kp < 0.06 or d0.dot(bun_dir) > 0.80 or (kp > 0.30 and sr.random() < 0.75):
-        continue  # hairline + some crown starts; skip the bun area
-    via = jitter(slerp(d0, bun_dir, 0.5).normalized(), 0.05, sr)
-    ds = dirs_path([d0, via, bun_dir], 30)
-    strand(f'HairStrand{count}', ds, sr.uniform(0.0075, 0.011), sr.uniform(0.0045, 0.0062), sr.uniform(0.002, 0.007),
-           M['hairHi'] if sr.random() < 0.25 else M['hair'],
-           wave=0.0015, seed=k)
-    count += 1
-print('scalp strands', count)
-
-# (a2) nape + behind-the-ear strands: start under the skin just below the hair edge and sweep up into the hair
-nr = random.Random(23)
-nn = 0
-for k in range(3000):
-    zz = 1 - 2 * (k + 0.5) / 3000
-    rr = math.sqrt(1 - zz * zz)
-    d0 = V((math.cos(golden * k) * rr, math.sin(golden * k) * rr, zz))
-    kp = hair_keep(d0)
-    if not (-0.07 < kp < -0.015) or d0.y < -0.15 or nr.random() < 0.55:
-        continue
-    via = jitter(slerp(d0, bun_dir, 0.35).normalized(), 0.04, nr)
-    strand(f'HairNape{nn}', dirs_path([d0, via, slerp(d0, bun_dir, 0.75).normalized()], 24), nr.uniform(0.006, 0.009), nr.uniform(0.0035, 0.005),
-           nr.uniform(0.002, 0.005), M['hairHi'] if nr.random() < 0.2 else M['hair'], seed=900 + k)
-    nn += 1
-print('nape strands', nn)
-
-# (b) side-swept forehead lock as a fan of strands from the parting across the forehead
-part = V((0.45, -0.50, 0.74))
-base_ws = [part, V((0.10, -0.76, 0.68)), V((-0.50, -0.66, 0.58)), V((-0.86, -0.15, 0.52)), bun_dir]
-for k in range(22):
-    t = k / 21
-    ws = [jitter(w + V((0.0, 0.03 * t, 0.10 * t)), 0.012, sr) for w in base_ws[:-1]] + [bun_dir]
-    strand(f'HairSwoop{k}', dirs_path(ws, 46), sr.uniform(0.009, 0.012), 0.0055, 0.004 + 0.010 * t + sr.uniform(0, 0.002), M['hair'],
-           wave=0.002, seed=500 + k)
-
-
-# (c) two loose curls framing the face, in front of the ears
-def face_curl(name, top, length, turns, r0, r1, tube, sg, seed):
-    r = random.Random(seed)
-    ph = r.random() * K.TAU
-    pts = []
-    n = 70
-    for k in range(n):
-        t = k / (n - 1)
-        a = ph + t * turns * K.TAU
-        rad = K.lerp(r0, r1, t)
-        pts.append(top + V((sg * (math.cos(a) * rad + 0.010 * t), -math.sin(a) * rad - 0.012 * t, -t * length)))
-    return K.sweep(name, pts, lambda t: (tube * (1 - 0.6 * t) + 0.0006, tube * (1 - 0.6 * t) + 0.0006), nprof=8, mat=M['hair'], uv_len=6)
-
-
-for sg in (1, -1):
-    top = cap_point(V((sg * 0.84, -0.50, 0.02)).normalized(), 0.002)
-    face_curl(f'FaceCurl{sg}', top, 0.105, 2.6, 0.0075, 0.012, 0.0042, sg, 80 + sg)
-
-# (d) bun: rounded mass of layered soft S-wave locks wrapped around a core, warm brown highlights, 4 loose curls
-BR = P['bun_r']
-K.subsurf(K.ellipsoid('BunCore', BUN, (BR * 0.78, BR * 0.74, BR * 0.78), mat=M['bun']), 1)
-br = random.Random(33)
-
-
-def bun_lock(name, axis, start, sweep_ang, layer, width, thick, amp, freq, mat):
-    """Lock wrapping the bun: rotate `start` around `axis` by sweep_ang with an S-wave across the path."""
-    axis = axis.normalized()
-    start = (start - axis * start.dot(axis)).normalized()
-    side = axis.cross(start)
-    pts, nrm = [], []
-    n = 44
-    for k in range(n):
-        t = k / (n - 1)
-        a = sweep_ang * t
-        d = start * math.cos(a) + side * math.sin(a)
-        d = (d + axis * amp * math.sin(freq * math.pi * t)).normalized()       # S-wave
-        rad = BR * layer * (1 + 0.05 * math.sin(math.pi * t))                 # bulges over the mass
-        p = BUN + d * rad
-        if (p - C).length < (head_point((p - C).normalized()) - C).length + 0.004:
-            p = C + (p - C).normalized() * ((head_point((p - C).normalized()) - C).length + 0.004)   # stay outside the scalp
-        pts.append(p); nrm.append((p - BUN).normalized())
-    prof = lambda t: (thick * (0.30 + 0.70 * math.sin(math.pi * t) ** 0.6) + 0.0006,
-                      width * (0.20 + 0.80 * math.sin(math.pi * t) ** 0.5) + 0.001)
-    return K.subsurf(K.sweep(name, pts, prof, nprof=10, mat=mat, normals=nrm, uv_len=5), 1)
-
-
-nl = 0
-for layer, count in ((0.84, 9), (0.94, 9), (1.04, 8)):
-    for k in range(count):
-        ax = V((br.uniform(-1, 1), br.uniform(-1, 1), br.uniform(-1, 1)))
-        st = V((br.uniform(-1, 1), br.uniform(-1, 1), br.uniform(-1, 1)))
-        hi = br.random() < 0.35
-        bun_lock(f'BunLock{nl}', ax, st, math.radians(br.uniform(170, 260)), layer, br.uniform(0.022, 0.032), br.uniform(0.007, 0.010),
-                 br.uniform(0.12, 0.22), br.choice((2, 3)), M['bunHi'] if hi else M['bun'])
-        nl += 1
-# loose curls escaping the bun
-for k in range(4):
-    a = -0.9 + k * 0.6
-    base = BUN + V((math.cos(a) * 0.6 - 0.2, math.sin(a) * 0.5 + 0.3, -0.7)).normalized() * BR * 0.95
-    ph = br.random() * K.TAU
-    pts = [base + V((math.cos(ph + t * 2.3 * K.TAU) * 0.006 * (1 + t), math.sin(ph + t * 2.3 * K.TAU) * 0.006 * (1 + t), -t * br.uniform(0.04, 0.06)))
-           for t in [i / 49 for i in range(50)]]
-    K.sweep(f'BunCurl{k}', pts, lambda t: (0.0040 * (1 - 0.6 * t) + 0.0006, 0.0038 * (1 - 0.6 * t) + 0.0006), nprof=8, mat=M['bunHi'] if k % 2 else M['bun'], uv_len=4)
+# ================================================================== HEAD + HAIR (v2, round 26+)
+HINFO = HEAD.build(K, M)
+RINFO = HAIR.build(K, M)
 
 # ================================================================== BODY (union of arms + hands + legs + neck)
 def arm_parts(sg):
@@ -576,7 +109,7 @@ legs = []
 for sg in (1, -1):
     legs.append(K.capsule('leg', V((sg * 0.050, 0.0, 0.26)), V((sg * 0.047, 0.0, 0.05)), 0.026, 0.018))
 K.union('Legs', legs, voxel=0.003, smooth_iter=4, decimate=0.3, mat=M['tights'])
-K.subsurf(K.capsule('Neck', V((0, 0.012, 0.715)), V((0, 0.012, 0.620)), 0.040, 0.044), 0)
+K.subsurf(K.capsule('Neck', V((0, 0.020, 0.715)), V((0, 0.016, 0.620)), 0.031, 0.036), 0)
 bpy.data.objects['Neck'].data.materials.append(M['skinPlain'])
 
 # shoes: rounded toe Mary Janes
@@ -757,15 +290,6 @@ def under(u, v):
 K.subsurf(K.surface('Underskirt', under, 128, 10, wrap_u=True, mat=M['under']), 1)
 
 # ------------------------------------------------------------------ pose (static, no rig): relaxed stance, head turn + tilt
-HEAD_PARTS = ('Head', 'Ear', 'Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple',
-              'HairCap', 'HairStrand', 'HairNape', 'HairSwoop', 'FaceCurl', 'BunCore', 'BunLock', 'BunCurl')
-piv = V((0, 0.012, 0.662))
-Rh = Matrix.Rotation(math.radians(P.get('head_yaw', 0)), 4, 'Z') @ Matrix.Rotation(math.radians(P.get('head_roll', 0)), 4, 'Y') \
-    @ Matrix.Rotation(math.radians(P.get('head_pitch', 2)), 4, 'X')
-Mh = Matrix.Translation(piv) @ Rh @ Matrix.Translation(-piv)
-for o in list(bpy.context.scene.objects):
-    if o.type == 'MESH' and o.name.startswith(HEAD_PARTS):
-        o.data.transform(Mh)
 for o in list(bpy.context.scene.objects):   # weight shift: her left foot steps forward, right foot turns out
     if o.name.startswith(('Shoe1', 'ShoeStrap1')):
         o.data.transform(Matrix.Translation(V((0.004, -0.022, 0))))
@@ -773,44 +297,67 @@ for o in list(bpy.context.scene.objects):   # weight shift: her left foot steps 
         fp = V((-0.047, 0.0, 0))
         o.data.transform(Matrix.Translation(fp) @ Matrix.Rotation(math.radians(-16), 4, 'Z') @ Matrix.Translation(-fp))
 
+# ------------------------------------------------------------------ skin texture: baked position map + AO -> painted face
+head_ob = HINFO['head']
+PW, PH = 2048, 1024
+pos, valid = HEAD.bake_position_map(head_ob, PW, PH)
+ao = HEAD.bake_ao_map(head_ob, 1024, 512, samples=32)
+from PIL import Image as _Img, ImageFilter as _IF
+ao = np.asarray(_Img.fromarray((np.clip(ao, 0, 1) * 255).astype(np.uint8)).filter(_IF.GaussianBlur(3)), np.float32) / 255.0
+ao_up = np.kron(ao, np.ones((2, 2), np.float32))
+# skin pushed behind the eyeballs bakes black: exclude the sockets so no dark edges bleed onto the lids
+near_eye = np.zeros(valid.shape, np.float32)
+for sg in (-1, 1):
+    E = HINFO['frames'][sg][0]
+    dist = np.linalg.norm(pos - np.array(E[:]), axis=-1) / HEAD.H['eye_r']
+    near_eye = np.maximum(near_eye, np.clip((1.45 - dist) / 0.40, 0, 1))
+ao_up = ao_up * (1 - near_eye) + near_eye
+face = HEAD.paint_skin(pos, valid, ao=0.55 + 0.45 * ao_up)
+_Img.fromarray(face).save(os.path.join(TEX, 'face2.png'))
+M['skin'] = K.material('skin_face', tex=os.path.join(TEX, 'face2.png'), rough=0.55, sheen=0.25, sheen_tint='#ff9a70', spec=0.45)
+head_ob.data.materials.clear(); head_ob.data.materials.append(M['skin'])
+
 # ------------------------------------------------------------------ measurement landmarks (LM_ empties) + mesh groups
 # Anchor landmarks are empties; silhouette landmarks (hair_top, bun_top, chin, cheeks, ear extremes) are computed by
-# web/lib/refcam.js from the mesh groups below, because they depend on the camera.
-def lm_points():
-    out = {}
-    for sg, side in ((-1, 'R'), (1, 'L')):     # sg=-1 is her right
-        c, f, r, u = eye_frame(sg)
-        out[f'eye_{side}'] = c + f * P['eye_r']
-        am = math.radians(78)
-        for a, nm in ((-am, 'outer'), (am, 'inner')):          # r points to the nose: outer corner = a < 0
-            b = math.radians(P['lid_corner'])
-            d = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
-            out[f'eye_{side}_{nm}'] = c + d * P['eye_r'] * 1.02
-        out[f'brow_{side}'] = BROW_MID[sg]
-    out['nose_tip'] = head_point(V((0, -0.97, -0.37)).normalized())
-    out['mouth_R'] = on_face(-0.020, P['mouth_z'] + 0.0075, 0.0008)[0]
-    out['mouth_L'] = on_face(0.020, P['mouth_z'] + 0.0075, 0.0008)[0]
-    out['mouth_centre'] = on_face(0.0, P['mouth_z'] - 0.0012, 0.0008)[0]
-    fz = 0.2
-    while fz < 0.98 and hair_keep(V((0, -math.sqrt(1 - fz * fz), fz))) < 0:
-        fz += 0.005
-    out['hairline_centre'] = head_point(V((0, -math.sqrt(1 - fz * fz), fz)))
-    for sx, side in ((-1, 'R'), (1, 'L')):
-        fzz = (P['brow_z'] - 0.012 - C.z) / P['head_rz_top']
-        fx = 0.3
-        while fx < 0.99:
-            d = V((sx * fx, -math.sqrt(max(0.01, 1 - fx * fx - fzz * fzz)), fzz)).normalized()
-            if hair_keep(d) > 0:
-                break
-            fx += 0.005
-        out[f'hairline_temple_{side}'] = head_point(d)
-    return out
+# web/lib/refcam.js from the mesh groups, because they depend on the camera.
+bvh = HEAD.bvh_of(head_ob)
+HH = HEAD.H
+LM = {}
+for sg, side in ((-1, 'R'), (1, 'L')):
+    E, f, u, o = HINFO['frames'][sg]
+    LM[f'eye_{side}'] = E + f * HH['eye_r']
+    inner, outer = HINFO['corners'][sg]
+    LM[f'eye_{side}_inner'] = inner; LM[f'eye_{side}_outer'] = outer
+    bxm = sg * (HH['brow_x0'] + HH['brow_x1']) / 2
+    bzm = HH['brow_z'] + HH['brow_arch'] * math.sin(math.pi * (0.15 + 0.85 * 0.5)) - 0.005
+    LM[f'brow_{side}'] = HEAD.hit_front(bvh, bxm, bzm)
+LM['nose_tip'] = HEAD.hit_front(bvh, 0.0, HH['nose_z'])
+LM['mouth_R'] = HEAD.hit_front(bvh, -HH['mouth_hw'], HH['mouth_z'] + 0.0032)
+LM['mouth_L'] = HEAD.hit_front(bvh, HH['mouth_hw'], HH['mouth_z'] + 0.0032)
+LM['mouth_centre'] = HEAD.hit_front(bvh, 0.0, HH['mouth_z'])
+LM['hairline_centre'] = HEAD.hit_front(bvh, 0.0, HEAD.hairline_z(0))
 
+
+def scalp_at(phi, z):
+    """Head surface point at azimuth phi (deg) and height z."""
+    a = math.radians(phi)
+    best = None
+    for k in range(400):
+        el = -0.9 + 1.8 * k / 399
+        d = V((math.sin(a) * math.cos(el), -math.cos(a) * math.cos(el), math.sin(el)))
+        pnt = HEAD.surf(d)
+        if best is None or abs(pnt.z - z) < abs(best.z - z):
+            best = pnt
+    return best
+
+
+LM['hairline_temple_R'] = scalp_at(-80, HEAD.hairline_z(-80))
+LM['hairline_temple_L'] = scalp_at(62, HEAD.hairline_z(62))
 
 GROUPS = [('Head', 'head'), ('EarringHook', 'jewel'), ('Earring', 'jewel'), ('Ear', 'ear'),
-          (('Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple'), 'face'),
+          (('Eye', 'Cornea', 'LashLine', 'LashFlick', 'LidLine'), 'face'),
           (('BunCore', 'BunLock', 'BunCurl'), 'bun'), (('FaceCurl',), 'curl'),
-          (('HairCap', 'HairStrand', 'HairNape', 'HairSwoop'), 'hair')]
+          (('HairCap', 'HairClump'), 'hair')]
 for o in bpy.context.scene.objects:
     for pre, g in GROUPS:
         if o.name.startswith(pre):
@@ -818,14 +365,31 @@ for o in bpy.context.scene.objects:
             if g == 'ear':
                 o['ll_side'] = 'R' if o.name.endswith('-1') else 'L'
             break
-for nm, pt in lm_points().items():
-    e = bpy.data.objects.new('LM_' + nm, None); e.location = Mh @ pt; e.empty_display_size = 0.005
+for nm, pt in LM.items():
+    e = bpy.data.objects.new('LM_' + nm, None); e.location = pt; e.empty_display_size = 0.005
     bpy.context.scene.collection.objects.link(e)
 
-# ------------------------------------------------------------------ export
+# ------------------------------------------------------------------ export: hero + game LOD (head+hair <= 60k tris)
 for o in bpy.context.scene.objects:
     if o.data:
         o.data.name = o.name
+HEADHAIR = ('head', 'ear', 'face', 'hair', 'bun', 'curl', 'jewel')
+
+
+def tri_count(objs):
+    return sum(len(p.vertices) - 2 for o in objs if o.type == 'MESH' for p in o.data.polygons)
+
+
+hh_objs = [o for o in bpy.context.scene.objects if o.get('ll_group') in HEADHAIR]
+hero_hh = tri_count(hh_objs)
 K.export_glb(OUT)
-tris = sum(len(p.vertices) - 2 for o in bpy.context.scene.objects if o.type == 'MESH' for p in o.data.polygons)
-print('EXPORTED', OUT, 'objects', len(bpy.context.scene.objects), 'tris', tris)
+tris = tri_count(bpy.context.scene.objects)
+# game LOD: decimate head+hair meshes proportionally until head+hair <= 58k triangles
+ratio = min(1.0, 50000 / max(1, hero_hh))
+if ratio < 1.0:
+    for o in hh_objs:
+        if len(o.data.polygons) > 400:
+            d = o.modifiers.new('lod', 'DECIMATE'); d.ratio = ratio; K.apply_mods(o)
+game_hh = tri_count(hh_objs)
+K.export_glb(OUT.replace('.glb', '_game.glb'))
+print('EXPORTED', OUT, 'objects', len(bpy.context.scene.objects), 'tris', tris, '| head+hair hero', hero_hh, 'game', game_hh)

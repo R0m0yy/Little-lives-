@@ -12,14 +12,19 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { tuneCharacterMaterials, studioLights } from './lib/look.js';
+import { tuneCharacterMaterials, studioLights, refBackdrop } from './lib/look.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { fitRefCamera, applyWindow } from './lib/refcam.js';
 
 const q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = +(q.get('exp') || 0.95);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = +(q.get('exp') || 1.0);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
@@ -53,8 +58,22 @@ new GLTFLoader().load(q.get('model') || '../assets/characters/naomi.glb', async 
     const [w, h] = applyWindow(camera, fit, q.get('win') || 'head');
     renderer.setSize(w, h, false); renderer.domElement.style.width = w + 'px'; renderer.domElement.style.height = h + 'px';
     window.MEASURE = fit;
-    renderer.render(scene, camera);
-    requestAnimationFrame(() => { renderer.render(scene, camera); window.READY = true; });
+    let draw = () => renderer.render(scene, camera);
+    if (!MASK) {
+      scene.background = refBackdrop(); ground.visible = false;
+      root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      const comp = new EffectComposer(renderer);
+      comp.addPass(new RenderPass(scene, camera));
+      // GTAO: off by default (?ao=1 to enable). In SwiftShader it darkened a screen-space box and lifted the hair alpha; baked AO is used instead.
+      if (q.get('ao') === '1') {
+        const ao = new GTAOPass(scene, camera, w, h); ao.blendIntensity = 0.7; ao.updateGtaoMaterial({ radius: 0.025, distanceExponent: 1.5, thickness: 0.6, scale: 1.0 }); comp.addPass(ao); }
+      comp.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.16, 0.35, 0.88));
+      comp.addPass(new OutputPass());
+      comp.setSize(w, h);   // propagates the device pixel ratio to GTAO/bloom buffers
+      draw = () => comp.render();
+    }
+    draw();
+    requestAnimationFrame(() => { draw(); window.READY = true; });
     return;
   }
   root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
