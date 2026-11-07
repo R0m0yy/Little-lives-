@@ -142,3 +142,56 @@ Not started (waiting for approval): rig/LOD clips, house pass, other family memb
 
 ## Next (needs owner approval)
 Owner reviews `qa/naomi3d/round_10.png`, `hands_r10.png` and `qa/house3d/round_06.png`. After approval: hair clump/lock pass, eye/mouth pass, rig Naomi, then the rest of the family.
+
+## House rounds 7–25 — measured rebuild (2026-11-07) — STOPPED FOR OWNER APPROVAL
+
+Naomi is frozen as a provisional placeholder (round 35). The house was rebuilt against a **measured** reference with the
+same method as Naomi. Outputs per round in `qa/house3d/hNN_*` (sbs = reference | Three.js [| Cycles], onion, lm, maskdiff, table).
+
+### Measurement (Phase H0, commit 10aa782)
+- `refs/house_ref.png` (board crop [990,605]–[1510,1025]), `refs/house_landmarks.json` (34 hand-annotated landmarks: finials, gable apexes, eaves, posts at the floor lines, wing roofs/finials/rails, plinth, attic opening; silhouette polygon), `refs/house_mask(_2x).png`.
+- Reference camera `web/lib/housecam.js` (`house.html?view=ref`, `&mask=1`): frozen from the board's own perspective cues — fov 11°, elevation 6°, yaw 0 (a grid search on the old blockout preferred fov 8 / el 0, but that blockout was built near-orthographically, so the fit described the model rather than the board). Distance from the house height (centre finial → plinth bottom = 396 px), least-squares translation.
+- `tools/house_measure.cjs`, `tools/house_report.py`, `tools/house_cycles.py`, `tools/house_round.sh N "change" [1]`.
+- Targets: IoU ≥ 0.92, every landmark ≤ 2 % of house height (7.9 px).
+
+### Rounds
+| round | one change | landmarks ≤2 % | mean % | IoU | biggest remaining difference after the round |
+|---|---|---|---|---|---|
+| 6 | (baseline, old blockout) | 6/34 | 3.97 | 0.866 | massing off everywhere |
+| 7 | massing to the measured landmarks | 31/34 | 1.22 | 0.923 | centre/left gable roof planes cross in an X (LL-034) |
+| 8 | gable valley clip (no X); 8b main slope no longer through the centre attic | 31/34 | 1.22 | 0.926 | no rooms/stairs |
+| 9 | H1 room plan: 12 rooms, hinged doors, stacked stairs + floor openings, attic stairs | 31/34 | 1.22 | 0.926 | plain-board gable trim |
+| 10 | pierced bargeboards + spandrel brackets, fish-scale shingles; 10b left gable face forward | 31/34 | 1.23 | 0.927 | slate too dark/flat |
+| 11 | blue-grey slate with courses + variation | 31/34 | 1.23 | 0.927 | plain cresting/finials |
+| 12 | pierced fleur cresting, lathe-turned finials | 31/34 | 1.23 | 0.926 | wings unlit, box railings |
+| 13 | lit multi-pane wing bays + curtains, turned balusters | 31/34 | 1.23 | 0.926 | wing roofs invisible from the front |
+| 14 | hipped lower wing roofs, narrower upper wing gables | 31/34 | 1.23 | 0.930 | centre gable 7 px right/8 px high |
+| 15 | centre gable to the landmarks (15a lowered the finial and shrank the whole fit; 15b taller finial) | 33/34 | 1.19 | 0.932 | blocky furniture |
+| 16 | furniture kit v2 (turned legs, tufted upholstery, carved beds, clawfoot tub, glass cabinets) **+ bug: lathe parts ignored x,y since round 12** (finials, balusters, legs, posts stacked at x=y=0; landmarks are empties so the table did not catch it) | 33/34 | 1.19 | 0.932 | rooms bare |
+| 17 | clutter pass (clock, candlesticks, tea set, vases, books, pictures + sconces, toys, pans, radio), attic ceiling lining | 33/34 | 1.19 | 0.932 | interior light pink/flat vs the board's amber |
+| 18 | amber room light vs cool dusk ambient, blurred backdrop + bokeh, bulb bloom, live fireplace flicker (18b fixed discs rotated about the world origin) | 33/34 | 1.19 | 0.932 | ~1900 draw calls, 281k tris |
+| 19 | budget: dissolved fretwork, merged static mesh, vertex-coloured class materials (19a merged the tabletop into the mask, IoU 0.913 → fixed) | 33/34 | 1.19 | 0.932 | no gameplay data |
+| 20 | 77 interaction points + 9 light switches, `house_data.json` | 33/34 | 1.19 | 0.932 | no nav |
+| 21 | per-level nav grid + stair links + reachability check → **45 of 81 points unreachable** | 33/34 | 1.19 | 0.932 | crowded layout |
+| 22 | nav-driven re-layout, global stair-linked reachability, front-exit landings → 9 of 75 unreachable | 33/34 | 1.19 | 0.932 | characters not swappable / scale unchecked |
+| 23 | character contract + loader, Naomi dropped in at interaction points → **furniture ~1.5× too big for her** | 33/34 | 1.19 | 0.932 | furniture scale |
+| 24 | furniture ×0.68 (board proportions + Naomi's hip height) → 3 of 75 unreachable | 33/34 | 1.19 | 0.932 | left gable apex 2.2 % |
+| 25 | left gable apex 8 px lower, taller finial | 33/34 | 1.12 | **0.931** | see below |
+
+Cycles + floor/room close-ups: rounds 9, 12, 15, 18, 21, 24 (`hNN_cycles.png`, `hNN_floors.png`, `hNN_room*.png`).
+
+### Against the targets (honest)
+- **IoU 0.931 — target 0.92 met.**
+- **Landmarks: 33/34 within 2 % — not met.** `eave_R` is 2.03 % (8.0 px vs 7.9 px allowed). Mean 1.12 %.
+- **Budget: met.** 177k triangles (≤ 300k), 101 draw calls including the shadow and post passes (≤ 150), 2.2–4.4 ms/frame in SwiftShader (software GL in this container — **not** a device measurement).
+- **Gameplay data:** `assets/house/house_data.json` — 12 rooms + attic spaces, 4 levels, 6 hinged doors, 4 stairs, 14 lights, 9 switches, 81 interaction points (sit 17 · open 23 · use 14 · switch 14 · sleep 4 · bathe 1 · climb 4 · arrive 4), per-level nav grids (4 cm cells, radius 0.17) with stair links. **72 of 75 points reachable** from the ground floor through doors and stairs; unreachable: attic landing chair + trunk, loft lamp. 3 points in the sealed left-gable storage are excluded (no stair reaches it). Map: `qa/house3d/h24_nav.png`.
+- **Characters:** `docs/CHARACTER_CONTRACT.md` + `web/lib/characters.js` (`house.html?char=<glb>&at=<interaction id>`).
+
+### Biggest remaining differences after round 25
+1. **Interior density and detail.** At the corrected scale the rooms read sparser than the board's packed collector's rooms; furniture is still simplified (no carving detail, little fabric pattern), wallpapers are simple procedural motifs.
+2. **Exterior siding/trim.** Clapboard has no baked AO, no corbels under the beams, plain window glass on the back walls; the board's trim is finer and more ornate.
+3. **Lighting.** Three.js interiors are amber like the board but flatter (no AO — GTAO was disabled because it produced artefacts in SwiftShader); Cycles from the same camera shows softer bounce light and darker corners, so the remaining gap is shading, not modelling.
+4. **Attic.** The centre attic landing is small (headroom ≥ 1.0 only ±0.62 around the ridge) and the left-gable storage has no access.
+5. **Doors** are exported open (folded into the partition plane); opening/closing is for the sim wiring stage.
+
+Not started (waiting for approval): wiring `core/` into the Three.js house, placeholder dolls for the family, other family members.

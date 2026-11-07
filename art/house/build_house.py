@@ -1283,7 +1283,8 @@ for xx in (X(1295), XAR):
 box('atticSill', X(1295), POSTS[3], -0.1, 0.05, F4 - 0.02, F4 + 0.12, M['trim'], 0.01)
 # cross gables: (centre x, half width, apex z, depth)
 FINIAL_TOP = {}
-GABLES = [(X(1137), (X(1195) - X(1060)) / 2 + 0.05, Z(645), 'L'), (XGC, (X(1310) - X(1180)) / 2 + 0.05, ZGC, 'C')]
+# round 25: left gable apex 8 px lower (measured: was Z(645))
+GABLES = [(X(1137), (X(1195) - X(1060)) / 2 + 0.05, Z(653), 'L'), (XGC, (X(1310) - X(1180)) / 2 + 0.05, ZGC, 'C')]
 # round 8 (LL-034): where the left gable's right plane meets the centre gable's left plane. The board shows the left
 # gable in front: its right bargeboard runs unbroken to its foot and the centre gable's left side stops on it.
 _gl, _gc = GABLES[0], GABLES[1]
@@ -1327,7 +1328,7 @@ for gx, hw, apex, tag in GABLES:
         if tag == 'C' and sgn < 0:   # stop on the left gable's bargeboard
             b = a + (b - a) * ((a.x - X_VALLEY) / (a.x - b.x))
         bargeboard(f'barge{tag}{sgn}', a, b)   # round 10: pierced fretwork
-    fh = 0.40 if tag == 'L' else 0.24            # measured finial heights above the apex (C: 0.15 -> 0.24 in round 15b)
+    fh = 0.47 if tag == 'L' else 0.24            # measured finial heights above the apex (C 0.24 r15b; L 0.40 -> 0.47 r25)
     turned_finial('finial', gx, -OV - 0.1, apex - 0.02, apex + fh, r=0.05 if tag == 'L' else 0.04)
     FINIAL_TOP[tag] = apex + fh
 # main front slope only behind the left gable (round 8b): it used to run through the centre-gable attic room
