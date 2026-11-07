@@ -401,7 +401,7 @@ def place(fn, x, y, z, rot=0.0, room=None, item=None, **kw):
     before = set(bpy.context.scene.objects)
     fn(0.0, 0.0, 0.0, **kw)
     new = [o for o in bpy.context.scene.objects if o not in before]
-    Mt = Matrix.Translation((x, y, z)) @ Matrix.Rotation(rot, 4, 'Z')
+    Mt = Matrix.Translation((x, y, z)) @ Matrix.Rotation(rot, 4, 'Z') @ Matrix.Scale(FS, 4)   # round 24: furniture scale
     for o in new:
         if o.type == 'MESH':
             o.data.transform(Mt)
@@ -409,9 +409,15 @@ def place(fn, x, y, z, rot=0.0, room=None, item=None, **kw):
             o.location = Mt @ o.location
     it = item or fn.__name__
     for k, (kind, stand, face, contact, extra) in enumerate(INTERACT.get(fn.__name__, lambda kw: [])(kw)):
+        if extra and 'seat_h' in extra:
+            extra = dict(extra, seat_h=round(extra['seat_h'] * FS, 3))
+        if extra and 'lie_h' in extra:
+            extra = dict(extra, lie_h=round(extra['lie_h'] * FS, 3))
         add_ip(room or '', it, k, kind, Mt @ V(stand), Mt.to_3x3() @ V((face[0], face[1], 0.0)), Mt @ V(contact), extra)
     return tag(new, ll_room=room or '', ll_item=it)
 
+
+FS = 0.68   # round 24: furniture scale — matches the board's furniture-to-room proportions and Naomi (1.0 tall, hip ~0.3)
 
 # ---- round 20 (H5): interaction points. Item-local frame: front of the item faces -Y. Each entry:
 # (kind, stand point (where the character stands, floor level), facing (unit xy, character forward when interacting),
@@ -991,8 +997,8 @@ place(sofa, xa0 + 0.27, 1.15, z, math.pi / 2, room='living')   # round 22: coffe
 rug(cxl, 1.2, z, 1.6, 1.3); place(lamp, xa0 + 0.25, YB - 0.3, z, room='living', h=0.9); place(plant, xa1 - 0.25, YB - 0.3, z, room='living')
 xc0, xc1 = XI[1]
 place(table, 0.0, 1.0, z, room='dining', w=0.7, l=0.5, h=0.62, cloth=True)   # round 22: narrower; path on the left to the stair
-for dx in (-0.18, 0.18):
-    place(chair, dx, 0.66, z, math.pi, room='dining'); place(chair, dx, 1.32, z, 0.0, room='dining')
+for dx in (-0.13, 0.13):
+    place(chair, dx, 0.76, z, math.pi, room='dining'); place(chair, dx, 1.24, z, 0.0, room='dining')
 place(dresser, xc1 - 0.19, 1.35, z, -math.pi / 2, room='dining'); chandelier(0.02, 1.0, CEIL[0]); rug(0.02, 1.0, z, 1.3, 1.1)
 xk0, xk1 = XI[2]
 place(counter_sink, xk0 + 0.62, YB - 0.27, z, room='kitchen', w=1.05); place(range_stove, xk1 - 0.45, YB - 0.27, z, room='kitchen')
@@ -1000,7 +1006,7 @@ place(icebox, xk1 - 0.25, 1.2, z, -math.pi / 2, room='kitchen'); place(table, xk
 place(chair, xk0 + 0.75, 0.82, z, math.pi, room='kitchen'); window(xk0 + 0.62, z + 1.0, 0.5, 0.42, YB - 0.01); chandelier((xk0 + xk1) / 2, 1.1, CEIL[0])
 z = F2
 place(bed, cxl + 0.23, YB - 0.66, z, room='master', w=1.1, l=1.3); place(cabinet, cxl - 0.54, YB - 0.2, z, room='master', w=0.32, h=0.5, d=0.32)
-place(lamp, cxl - 0.54, YB - 0.2, z + 0.5, room='master', h=0.42); place(cabinet, cxl + 0.96, YB - 0.2, z, room='master', w=0.3, h=0.5, d=0.32)
+place(lamp, cxl - 0.54, YB - 0.2, z + FS * 0.5, room='master', h=0.42); place(cabinet, cxl + 0.96, YB - 0.2, z, room='master', w=0.3, h=0.5, d=0.32)
 place(wardrobe, xa0 + 0.22, YB - 0.42, z, math.pi / 2, room='master'); place(vanity, xa0 + 0.2, 1.05, z, math.pi / 2, room='master')
 picture(cxl + 0.35, z + 1.25, 0.5, 0.35, YB); rug(cxl + 0.2, 1.1, z, 1.4, 1.0); chandelier(cxl, 1.1, CEIL[1])
 place(armchair, -0.05, 1.05, z, 0.0, room='sitting', mat='rose')   # round 22: one armchair — keeps both doorways, the S2 foot and the S1 exit connected
@@ -1012,12 +1018,12 @@ window(xk0 + 0.95, z + 0.95, 0.4, 0.42, YB - 0.01); rug(xk0 + 0.9, 1.3, z, 0.9, 
 z = F3
 place(small_bed, xa0 + 0.4, YB - 0.6, z, room='elias', w=0.66, l=1.2); place(desk, cxl + 0.45, YB - 0.25, z, room='elias')
 place(chair, cxl + 0.45, YB - 0.62, z, math.pi, room='elias'); place(bookshelf, xa1 - 0.36, 1.45, z, -math.pi / 2, room='elias', w=0.6, h=1.3)
-place(lamp, cxl + 0.7, YB - 0.22, z + 0.62, room='elias', h=0.35); window(cxl + 0.45, z + 0.95, 0.5, 0.5, YB - 0.01); rug(cxl, 1.1, z, 1.2, 0.9)
+place(lamp, cxl + 0.7, YB - 0.22, z + FS * 0.62, room='elias', h=0.35); window(cxl + 0.45, z + 0.95, 0.5, 0.5, YB - 0.01); rug(cxl, 1.1, z, 1.2, 0.9)
 place(desk, 0.1, 1.15, z, room='study'); place(glass_cabinet, XI[1][1] - 0.2, 1.25, z, -math.pi / 2, room='study', w=0.55, h=1.3); place(chair, 0.1, 0.80, z, math.pi, room='study')   # round 22: in front of the desk (back strip free for S2/S3); place(globe, 0.40, 0.48, z, room='study')
 bx('study_shelf', (0.55, YB - 0.1, z + 1.25), (0.8, 0.18, 0.03), M['wood'], 0.005); rug(0.1, 1.0, z, 1.2, 0.9); chandelier(0.02, 1.0, CEIL[2])
 place(small_bed, xk0 + 0.4, YB - 0.56, z, room='laila', w=0.6, l=1.08, quilt='rose'); place(toy_chest, xk0 + 0.85, 1.05, z, room='laila')
 place(toy_dollhouse, xk1 - 0.22, 1.3, z, -math.pi / 2, room='laila'); rug(xk0 + 0.6, 0.95, z, 0.9, 0.7); window(xk0 + 0.4, z + 0.95, 0.45, 0.5, YB - 0.01)
-place(lamp, xk0 + 0.95, YB - 0.2, z + 0.36, room='laila', h=0.35)
+place(lamp, xk1 - 0.25, YB - 0.25, z, room='laila', h=0.55)   # round 24: floor lamp (its toy chest moved in round 21)
 z = F4
 place(chair, gxC - 0.2, 1.05, z, 0.0, room='attic_c'); place(plant, gxC + 0.35, 0.55, z, room='attic_c', s=0.7); rug(gxC, 0.9, z, 0.8, 0.8)
 place(trunk, ACX0 + 0.35, 1.2, z, room='attic_c')
@@ -1108,52 +1114,52 @@ def radio(x, y, z):
 
 # living
 z = F1
-for dx in (-0.48, 0.48):
-    candlestick(cxl + dx, YB - 0.24, z + 1.15)
-mantel_clock(cxl + 0.12, YB - 0.24, z + 1.15); vase_flowers(cxl + 0.33, YB - 0.24, z + 1.15, 0.8)
+for dx in (-0.33, 0.33):
+    candlestick(cxl + dx, YB - 0.24, z + FS * 1.15)
+mantel_clock(cxl + 0.08, YB - 0.22, z + FS * 1.15); vase_flowers(cxl + 0.22, YB - 0.22, z + FS * 1.15, 0.6)
 teaset(cxl - 0.2, YB - 0.24, z + 1.15); back_picture(xa0 + 0.35, z + 1.25, 0.26, 0.32); sconce(xa0 + 0.35, z + 0.9); sconce(xa1 - 0.3, z + 0.95)
 back_picture(xa1 - 0.3, z + 1.3, 0.24, 0.3)
 # dining
 z = F1
-lathe_at('fruit_bowl', 0.0, 1.0, [(0.07, 0.07, z + 0.70), (0.06, 0.06, z + 0.67), (0.03, 0.03, z + 0.645), (0.0, 0.0, z + 0.645)], nu=12, mat=M['china'])
+lathe_at('fruit_bowl', 0.0, 1.0, [(0.07, 0.07, z + FS * 0.70), (0.06, 0.06, z + FS * 0.67), (0.03, 0.03, z + FS * 0.645), (0.0, 0.0, z + FS * 0.645)], nu=12, mat=M['china'])
 for k in range(5):
-    K.ellipsoid('fruit', V((0.0 + 0.03 * math.cos(k * 1.3), 1.0 + 0.03 * math.sin(k * 1.3), z + 0.70)), (0.022, 0.022, 0.022), mat=M['fruit'] if k % 2 else M['leaf'], nu=8, nv=6)
-for dx in (-0.18, 0.18):
-    for dy in (0.80, 1.20):
-        cyl('placeplate', (dx, dy, z + 0.645), 0.055, 0.008, M['china'], 14)
-candlestick(-0.25, 1.0, z + 0.645); candlestick(0.25, 1.0, z + 0.645)
+    K.ellipsoid('fruit', V((0.0 + 0.03 * math.cos(k * 1.3), 1.0 + 0.03 * math.sin(k * 1.3), z + FS * 0.70)), (0.022, 0.022, 0.022), mat=M['fruit'] if k % 2 else M['leaf'], nu=8, nv=6)
+for dx in (-0.12, 0.12):
+    for dy in (0.90, 1.10):
+        cyl('placeplate', (dx, dy, z + FS * 0.645), 0.055, 0.008, M['china'], 14)
+candlestick(-0.18, 1.0, z + FS * 0.645); candlestick(0.18, 1.0, z + FS * 0.645)
 back_picture(xc0 + 0.3, z + 1.3, 0.26, 0.3); sconce(xc1 - 0.25, z + 1.1)
 # kitchen
-pans(xk0 + 0.62, F1 + 1.75); bx('bread', (xk0 + 0.75, 1.15, F1 + 0.66), (0.14, 0.07, 0.05), M['bread'], 0.02)
-lathe_at('kettle_k', xk1 - 0.55, YB - 0.32, [(0.0, 0.0, F1 + 1.06), (0.03, 0.03, F1 + 1.05), (0.07, 0.07, F1 + 1.0), (0.065, 0.065, F1 + 0.95), (0.0, 0.0, F1 + 0.95)], nu=12, mat=M['copper'])
-cyl('pot_k', (xk1 - 0.33, YB - 0.32, F1 + 1.0), 0.07, 0.1, M['iron'], 14)
+pans(xk0 + 0.62, F1 + 1.75); bx('bread', (xk0 + 0.75, 1.15, F1 + FS * 0.66), (0.14, 0.07, 0.05), M['bread'], 0.02)
+lathe_at('kettle_k', xk1 - 0.55, YB - 0.32, [(0.0, 0.0, F1 + FS * 0.93 + 0.11), (0.03, 0.03, F1 + FS * 0.93 + 0.10), (0.07, 0.07, F1 + FS * 0.93 + 0.05), (0.065, 0.065, F1 + FS * 0.93), (0.0, 0.0, F1 + FS * 0.93)], nu=12, mat=M['copper'])
+cyl('pot_k', (xk1 - 0.33, YB - 0.30, F1 + FS * 0.93 + 0.05), 0.06, 0.1, M['iron'], 14)
 # master
 z = F2
-vase_flowers(cxl - 0.54, YB - 0.2, z + 0.5, 0.7); books_stack(cxl + 0.96, YB - 0.22, z + 0.5, 2)
+vase_flowers(cxl - 0.54, YB - 0.2, z + FS * 0.5, 0.7); books_stack(cxl + 0.96, YB - 0.22, z + FS * 0.5, 2)
 for k in range(3):
-    cyl('bottle', (xa0 + 0.2, 0.95 + 0.07 * k, z + 0.68), 0.015, 0.08, M['cabGlass'] if k % 2 else M['china'], 8)
+    cyl('bottle', (xa0 + 0.2, 0.95 + 0.07 * k, z + FS * 0.68), 0.015, 0.08, M['cabGlass'] if k % 2 else M['china'], 8)
 sconce(cxl - 0.05, z + 1.0); sconce(cxl + 0.75, z + 1.0)
 # sitting
 z = F2
-place(radio, XI[1][1] - 0.12, 1.62, z, -math.pi / 2, room='sitting'); toy_blocks(0.35, 0.62, z); vase_flowers(-0.05, 0.85, z + 0.36, 0.7)
+place(radio, XI[1][1] - 0.12, 1.62, z, -math.pi / 2, room='sitting'); toy_blocks(0.35, 0.62, z); vase_flowers(-0.05, 0.85, z + FS * 0.36, 0.7)
 back_picture(0.35, z + 1.25, 0.28, 0.3); doll(-0.05, 1.02, z + 0.40)
 # bath
 z = F2
-bx('towel_stack', (xk0 + 0.25, YB - 0.22, z + 0.88), (0.12, 0.1, 0.06), M['quilt'], 0.01); vase_flowers(xk0 + 1.35, YB - 0.2, z + 0.0, 1.0)
-cyl('soap', (xk0 + 0.32, YB - 0.2, z + 0.85), 0.02, 0.015, M['rose'], 8)
+bx('towel_stack', (xk0 + 0.25, YB - 0.22, z + FS * 0.88), (0.12, 0.1, 0.06), M['quilt'], 0.01); vase_flowers(xk0 + 1.35, YB - 0.2, z + FS * 0.0, 1.0)
+cyl('soap', (xk0 + 0.32, YB - 0.2, z + FS * 0.85), 0.02, 0.015, M['rose'], 8)
 # elias
 z = F3
 books_stack(cxl + 0.2, YB - 0.25, z + 0.62, 4); back_picture(xa0 + 0.45, z + 1.25, 0.34, 0.24); back_picture(cxl + 0.45, z + 1.45, 0.22, 0.16)
-bx('model_ship_hull', (xa1 - 0.36, 1.45, z + 1.36), (0.24, 0.06, 0.05), M['wood'], 0.02); cyl('model_ship_mast', (xa1 - 0.36, 1.45, z + 1.45), 0.005, 0.16, M['wood'], 6)
+bx('model_ship_hull', (xa1 - 0.36, 1.45, z + FS * 1.36), (0.24, 0.06, 0.05), M['wood'], 0.02); cyl('model_ship_mast', (xa1 - 0.36, 1.45, z + FS * 1.45), 0.005, 0.16, M['wood'], 6)
 # study
 z = F3
 for k in range(3):
     books_stack(0.4 + 0.18 * k, YB - 0.1, z + 1.27, 3)
-bx('papers', (0.0, 1.12, z + 0.635), (0.2, 0.14, 0.006), M['paper'], 0); candlestick(0.35, 1.2, z + 0.63)
+bx('papers', (0.0, 1.12, z + FS * 0.635), (0.2, 0.14, 0.006), M['paper'], 0); candlestick(0.35, 1.2, z + FS * 0.63)
 back_picture(-0.35, z + 1.3, 0.3, 0.36)
 # laila
 z = F3
-doll(xk0 + 0.3, YB - 0.4, z + 0.45, 'toyY'); doll(xk0 + 0.5, YB - 0.42, z + 0.45, 'toyB'); toy_blocks(xk0 + 0.8, 0.7, z)
+doll(xk0 + 0.3, YB - 0.4, z + FS * 0.45, 'toyY'); doll(xk0 + 0.5, YB - 0.42, z + FS * 0.45, 'toyB'); toy_blocks(xk0 + 0.8, 0.7, z)
 doll(xk1 - 0.22, 1.05, z + 0.0, 'toyR'); back_picture(xk0 + 1.0, z + 1.25, 0.24, 0.24)
 # attic: ceiling lining under the centre gable roof (the slate underside showed through), boxes, cushions
 for sgn in (-1, 1):
