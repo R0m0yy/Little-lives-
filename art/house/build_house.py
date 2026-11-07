@@ -435,7 +435,6 @@ def front_slope(x0, x1, z_lo, z_hi, y_lo=-OV, y_hi=D * 0.45):
 yR = D * 0.45
 def slope_z(y):
     return EAVE_Z + (RID - EAVE_Z) * (y + OV) / (yR + OV)
-front_slope(xL, X(1295) - 0.02, EAVE_Z, RID)
 slab('roofFrontHipL', [(HIP_L, D * 0.45, RID), (xL, -OV, EAVE_Z), (xL, -OV, EAVE_Z - 0.001), (HIP_L, D * 0.45 + 0.001, RID)], M['slate'], 0.06, 0.6)
 y_open = (Z(668) - EAVE_Z) / (RID - EAVE_Z) * (yR + OV) - OV   # slope y at the attic-room top
 front_slope(X(1295) - 0.02, xR, Z(668), RID, y_lo=y_open, y_hi=yR)
@@ -447,10 +446,22 @@ box('atticSill', X(1295), POSTS[3], -0.1, 0.05, F4 - 0.02, F4 + 0.12, M['trim'],
 # cross gables: (centre x, half width, apex z, depth)
 FINIAL_TOP = {}
 GABLES = [(X(1137), (X(1195) - X(1060)) / 2 + 0.05, Z(645), 'L'), (X(1245), (X(1310) - X(1180)) / 2 + 0.05, Z(625), 'C')]
+# round 8 (LL-034): where the left gable's right plane meets the centre gable's left plane. The board shows the left
+# gable in front: its right bargeboard runs unbroken to its foot and the centre gable's left side stops on it.
+_gl, _gc = GABLES[0], GABLES[1]
+_bz = EAVE_Z + 0.03
+def _line(gx, hw, apex, sgn, ext, dz_top, dz_foot):   # z(x) of a gable edge line
+    x0, z0 = gx, apex + dz_top; x1, z1 = gx + sgn * (hw + ext), _bz + dz_foot
+    return lambda x: z0 + (z1 - z0) * (x - x0) / (x1 - x0)
+_zl = _line(_gl[0], _gl[1], _gl[2], 1, 0.12, 0.05, -0.05); _zc = _line(_gc[0], _gc[1], _gc[2], -1, 0.12, 0.05, -0.05)
+X_VALLEY = next(x for x in [ _gl[0] + i * 0.001 for i in range(4000)] if _zl(x) <= _zc(x))
+Z_VALLEY = _zl(X_VALLEY)
 for gx, hw, apex, tag in GABLES:
     base = EAVE_Z + 0.03   # round 7: gable feet on the eave line (measured)
     for sgn in (-1, 1):  # two roof planes of the gable, running back to the main roof
         e = (gx + sgn * (hw + 0.12), base - 0.05)
+        if tag == 'C' and sgn < 0:
+            e = (X_VALLEY, Z_VALLEY)      # clipped at the valley (no X crossing)
         corners = [(gx, -OV - 0.05, apex + 0.05), (e[0], -OV - 0.05, e[1]), (e[0], D * 0.6, e[1]), (gx, D * 0.6, apex + 0.05)]
         slab(f'gableRoof{tag}{sgn}', corners if sgn < 0 else corners[::-1], M['slate'], 0.06, 0.6)
     # shingled gable face, recessed a little
@@ -467,11 +478,15 @@ for gx, hw, apex, tag in GABLES:
         empty('Light_gableL', (wx, 0.5, wz))
     else:
         # centre gable is open: frame its opening with a shingled band above the room
-        poly(f'gableFace{tag}', [(gx - hw, -0.05, Z(650)), (gx + hw, -0.05, Z(650)), (gx, -0.05, apex - 0.05)], M['shingle'], 0.05, 0.5)
+        # face triangle above the open attic room, bounded by its own roof lines (round 8b)
+        _xl = gx - (apex - Z(650)) * hw / (apex - base); _xr = gx + (apex - Z(650)) * hw / (apex - base)
+        poly(f'gableFace{tag}', [(_xl, -0.05, Z(650)), (_xr, -0.05, Z(650)), (gx, -0.05, apex - 0.05)], M['shingle'], 0.05, 0.5)
     # bargeboards with fretwork drops, finial
     for sgn in (-1, 1):
         a = V((gx, -OV - 0.1, apex + 0.08)); b = V((gx + sgn * (hw + 0.14), -OV - 0.1, base - 0.08))
-        dvec = b - a; n = 14
+        if tag == 'C' and sgn < 0:   # stop on the left gable's bargeboard
+            b = a + (b - a) * ((a.x - X_VALLEY) / (a.x - b.x))
+        dvec = b - a; n = max(4, int(14 * dvec.length / 1.6))
         for k in range(n):
             p = a + dvec * ((k + 0.5) / n)
             cyl('fret', (p.x, p.y, p.z - 0.07), 0.025, 0.12, M['trim'], 6)
@@ -483,6 +498,8 @@ for gx, hw, apex, tag in GABLES:
     cyl('finial', (gx, -OV - 0.1, apex + fh * 0.45), 0.04, fh * 0.9, M['trim'], 8, 0.015)
     K.ellipsoid('finialBall', V((gx, -OV - 0.1, apex + fh - 0.05)), (0.05, 0.05, 0.05), mat=M['trim'], nu=10, nv=8)
     FINIAL_TOP[tag] = apex + fh
+# main front slope only behind the left gable (round 8b): it used to run through the centre-gable attic room
+front_slope(xL, X_VALLEY, EAVE_Z, RID)
 # cresting along the main ridge + end finials
 for k in range(26):
     xx = HIP_L + (HIP_R - HIP_L) * k / 25
