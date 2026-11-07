@@ -8,3 +8,4 @@ qa/naomi3d/diag_*@2x.png
 qa/house3d/*_ref@2x.png
 qa/house3d/*_mask@2x.png
 qa/house3d/*_mask.png
+qa/house3d/nav_latest.png
