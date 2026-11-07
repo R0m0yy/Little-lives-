@@ -122,14 +122,15 @@ def head_point(d):
 
 def blush(p):
     d = (p - C).normalized()
-    w = max(gauss(d, V((0.55, -0.75, -0.42)), 0.20), gauss(d, V((-0.55, -0.75, -0.42)), 0.20))
+    w = max(gauss(d, V((0.53, -0.77, -0.44)), 0.24), gauss(d, V((-0.53, -0.77, -0.44)), 0.24))   # soft apple-cheek blush (round 25)
     lip = gauss(d, V((0, -0.93, -0.555)), 0.07) * 0.8
     base = (0.70, 0.27, 0.13)  # linear ~ #db8f64 (warm saturated tan)
     bl = (0.80, 0.18, 0.11)
     li = (0.62, 0.17, 0.13)
-    c = [base[i] * (1 - w * 0.55) + bl[i] * w * 0.55 for i in range(3)]
+    c = [base[i] * (1 - w * 0.78) + bl[i] * w * 0.78 for i in range(3)]
     c = [c[i] * (1 - lip) + li[i] * lip for i in range(3)]
-    tip = gauss(d, V((0, -0.97, -0.34)), 0.045) * 0.45            # warm nose tip
+    tip = gauss(d, V((0, -0.97, -0.37)), 0.055) * 0.70            # rosy nose tip
+    tip = max(tip, gauss(d, V((0, -0.93, -0.68)), 0.09) * 0.25)   # a little warmth on the chin
     under = gauss(d, V((0, -0.95, -0.445)), 0.035) * 0.35         # soft shadow under the nose
     c = [c[i] * (1 - tip) + bl[i] * tip for i in range(3)]
     c = [c[i] * (1 - under * 0.55) for i in range(3)]
@@ -539,7 +540,7 @@ def arm_parts(sg):
     parts = [K.capsule('ua', S, E, 0.030, 0.024), K.capsule('fa', E, W, 0.023, 0.016)]
     inward = V((-sg, 0, 0))
     parts.append(K.ellipsoid('palm', Hc, (0.0105, 0.020, 0.017), nu=20, nv=14))
-    parts.append(K.capsule('wristj', W, Hc + V((0, 0, 0.01)), 0.0165, 0.016))
+    parts.append(K.capsule('wristj', W + (W - Hc).normalized() * 0.006, Hc + V((0, 0, 0.008)), 0.0162, 0.0150))
     kz = Hc.z - 0.013
     for i, (oy, ln) in enumerate([(-0.0150, 0.018), (-0.0050, 0.021), (0.0050, 0.0195), (0.0148, 0.016)]):  # shorter, closer
         k0 = V((Hc.x + inward.x * 0.001, Hc.y + oy, kz))
@@ -556,7 +557,19 @@ def arm_parts(sg):
 
 
 for sg in (1, -1):
-    K.union(f'Arm{sg}', arm_parts(sg), voxel=0.0011, smooth_iter=3, smooth_factor=0.5, decimate=0.18, mat=M['skinPlain'])
+    arm = K.union(f'Arm{sg}', arm_parts(sg), voxel=0.0011, smooth_iter=3, smooth_factor=0.5, decimate=0.18, mat=M['skinPlain'])
+    # round 25: smooth only around the wrist joint (whole-arm smoothing would fuse the fingers again)
+    import bmesh
+    Wp = V((sg * P['wrist'].x, P['wrist'].y, P['wrist'].z))
+    bm = bmesh.new(); bm.from_mesh(arm.data)
+    zone = [v for v in bm.verts if (v.co - Wp).length < 0.034 and v.co.z > P['hand_c'].z + 0.002]
+    for _ in range(30):
+        bmesh.ops.smooth_vert(bm, verts=zone, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    bm.normal_update()
+    bm.to_mesh(arm.data); bm.free()
+    arm.data.update()
+    for poly in arm.data.polygons:
+        poly.use_smooth = True
 legs = []
 for sg in (1, -1):
     legs.append(K.capsule('leg', V((sg * 0.050, 0.0, 0.26)), V((sg * 0.047, 0.0, 0.05)), 0.026, 0.018))

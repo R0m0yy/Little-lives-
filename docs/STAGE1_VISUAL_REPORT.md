@@ -59,6 +59,19 @@ Triangles rose to ~580k (GLB ~12 MB); a decimated game LOD is still needed. No r
 
 Asset now ~600k triangles (GLB ~13 MB). Still static (no rig). Not approved; family/gameplay not started.
 
+## Naomi rounds 21–25 (owner list, 2026-11-07) — STOPPED FOR OWNER APPROVAL
+| Round | Fix | Biggest remaining difference after the round |
+|---|---|---|
+| 21 bun | Ring curls removed; 26 layered S-wave locks (3 layers) wrapped round a core, ~35% in warm chestnut, 4 loose curls | Head was a tall egg vs the board's round head |
+| 22 head | Head 0.150→0.162 wide, 0.152→0.146 tall; eyes lower (0.778), larger (r .050); smaller nose; fuller cheeks | Hard cut hair edge behind ear/nape; heavy black forehead band |
+| 23 hair integration | Gentle taper of the cap lip at back/sides; ~60 nape strands emerging from under the skin; 25% warm-brown highlight strands; warm rim light (`round_23_detail.png`) | White above the iris, thin lashes and brows |
+| 24 eyes/brows | Upper lid 47°→35° (overlaps iris); bold lash line thickening outward, outer flick + 8 feathered lashes; thicker, more arched brows. 24a revealed that the eye frame's side axis points to the nose, so since round 12 the "outer" flick/thick end/corner lift were at the inner corner — fixed | Flat even skin without cheek/nose blush |
+| 25 skin | Stronger soft apple-cheek blush, rosy nose tip, chin warmth; wrist: radii matched + local smoothing with recomputed normals (25a still showed a dark band) (`round_25_detail.png`) | See below |
+
+**Biggest remaining differences at round 25 (honest):** hair strands still read slightly stripy/choppy at the left temple and the brown highlight streaks are stronger than the board's; the bun locks look like smooth ribbons rather than the board's soft curly mass; feathered lashes are a little long/spiky; whole-body pose is still a stiff standing pose; the floral print is cleaner/more graphic than the board's painterly print. Asset ~665k tris / ~15 MB — needs the planned ≤60k LOD.
+
+**Waiting for approval before:** (a) ≤60k-triangle game LOD + skeleton with idle/walk/sit clips; (b) house pass (pierced fretwork, dense furniture, rugs, stairs and doorways across all three floors). No other family members.
+
 ## House — 6 rounds
 1 first blockout · 2 roof missing (only edge-on gable planes) → full-width slate front slope, attic opening ·
 3 interiors pale/blown → amber light, golden papers, darker floors · 4 thin trim → chunky posts, spindle friezes, flowers, deeper wing roofs ·
