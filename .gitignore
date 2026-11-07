@@ -5,3 +5,6 @@ art/naomi/tex/
 art/house/tex/
 qa/naomi3d/dev*
 qa/naomi3d/diag_*@2x.png
+qa/house3d/*_ref@2x.png
+qa/house3d/*_mask@2x.png
+qa/house3d/*_mask.png

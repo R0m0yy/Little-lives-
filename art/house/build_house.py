@@ -500,6 +500,28 @@ for x0, x1 in ((WING[0] - 0.1, X(1200)), (X(1305), WING[1] + 0.1)):
             K.ellipsoid('flower', V((fx, fy, 0.24 + rnd.uniform(0, 0.06))), (0.035, 0.035, 0.03), mat=FLOWERS[f % 4], nu=8, nv=6)
 box('tabletop', -9, 9, -4.5, 5, -0.12, -0.02, M['table'], 0, 1.6)
 
+# ------------------------------------------------------------------ measurement landmarks (H0 baseline: on the round-6 model)
+def lm(name, p):
+    e = bpy.data.objects.new('LM_' + name, None); e.location = p; e.empty_display_size = 0.05
+    bpy.context.scene.collection.objects.link(e)
+
+
+(gxL, hwL, apL, _), (gxC, hwC, apC, _) = GABLES
+lm('finial_C_top', (gxC, -OV - 0.1, apC + 0.62)); lm('gable_C_apex', (gxC, -OV - 0.1, apC + 0.08))
+lm('gable_C_foot_R', (gxC + hwC + 0.14, -OV - 0.1, EAVE_Z - 0.13)); lm('gable_C_window', (gxC, -0.05, Z(690)))
+lm('finial_L_top', (gxL, -OV - 0.1, apL + 0.62)); lm('gable_L_apex', (gxL, -OV - 0.1, apL + 0.08)); lm('gable_L_window', (X(1150), -0.1, Z(670)))
+lm('finial_end_L_top', (xL + 0.9, D * 0.45, RID + 0.6)); lm('finial_end_R_top', (xR - 0.9, D * 0.45, RID + 0.6)); lm('ridge_R_end', (xR - 0.9, D * 0.45, RID))
+lm('eave_L', (xL, -OV, EAVE_Z)); lm('eave_R', (xR, -OV, EAVE_Z))
+lm('attic_open_TL', (X(1295), y_open, Z(668))); lm('attic_open_BR', (X(1410), -0.1, F4))
+for i, px in enumerate(POSTS):
+    lm(f'post_{i + 1}_F3', (px, -0.13, F3 - 0.06)); lm(f'post_{i + 1}_F2', (px, -0.13, F2 - 0.06))
+lm('ground_C', (X(1255), -0.1, F1))
+for side, nm in ((-1, 'wingL'), (1, 'wingR')):
+    xo = WING[0] if side < 0 else WING[1]; xi = POSTS[0] - 0.1 if side < 0 else POSTS[3] + 0.1; pc = (xo + xi) / 2
+    lm(f'{nm}_finial', (pc, -0.25, F3 + 0.75)); lm(f'{nm}_upper_eave', (xo - side * 0.1, -0.25, F3 - 0.05))
+    lm(f'{nm}_lower_eave', (xo + side * 0.15, -0.45, F2 - 0.04)); lm(f'{nm}_rail_top', (xo, 0.05, F1 + 0.5))
+lm('plinth_L', (WING[0] - 0.1, -0.35, F1 - 0.08)); lm('plinth_R', (WING[1] + 0.1, -0.35, F1 - 0.08)); lm('plinth_bottom_C', (X(1256.7), -0.83, -0.02))
+
 for o in bpy.context.scene.objects:
     if o.data:
         o.data.name = o.name

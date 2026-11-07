@@ -6,6 +6,8 @@
 </head><body>
 <script type="module">
 // Stage 1 house proof: loads assets/house/house.glb, adds warm room lights at Light_* empties, tabletop camera.
+// ?view=ref : reference-matched camera (web/lib/housecam.js), &K=<px per board px>, &mask=1 white silhouette on black,
+//             &fov=&el=&yaw= override the frozen camera (calibration only).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -14,6 +16,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { fitHouseCamera, HOUSE_CAM } from './lib/housecam.js';
 
 const q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -44,8 +47,14 @@ composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight),
 composer.addPass(new OutputPass());
 const draw = () => composer.render();
 
-new GLTFLoader().load('../assets/house/house.glb', (g) => {
+const REFV = q.get('view') === 'ref', MASK = q.get('mask') === '1';
+new GLTFLoader().load(q.get('model') || '../assets/house/house.glb', async (g) => {
   const root = g.scene; scene.add(root);
+  if (MASK) {
+    const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    root.traverse((o) => { if (o.isMesh) { if (o.name.startsWith('tabletop') || o.name.startsWith('backdrop')) o.visible = false; else o.material = white; } });
+    scene.background = new THREE.Color(0); scene.environment = null; renderer.toneMapping = THREE.NoToneMapping;
+  }
   const lights = [];
   root.traverse((o) => {
     if (o.isMesh) {
@@ -60,6 +69,21 @@ new GLTFLoader().load('../assets/house/house.glb', (g) => {
     const fire = e.name === 'Light_fire';
     const L = new THREE.PointLight(fire ? 0xff7a2a : 0xff9c42, fire ? P * 0.7 : P, fire ? 2.5 : 4.0, 1.5);
     e.add(L);
+  }
+  if (REFV) {
+    const ref = await (await fetch('../refs/house_landmarks.json')).json();
+    const K = +(q.get('K') || 2);
+    const cam = { ...HOUSE_CAM };
+    for (const [k, key] of [['fov', 'fovDeg'], ['el', 'elevDeg'], ['yaw', 'yawDeg']]) if (q.get(k) !== null) cam[key] = +q.get(k);
+    const fit = fitHouseCamera(root, camera, ref, K, cam);
+    renderer.setSize(fit.W, fit.H, false); renderer.domElement.style.width = fit.W + 'px'; renderer.domElement.style.height = fit.H + 'px';
+    composer.setSize(fit.W, fit.H);
+    window.MEASURE = fit;
+    window.FIT = (c) => fitHouseCamera(root, camera, ref, K, { ...HOUSE_CAM, ...c });   // calibration hook
+    const d2 = MASK ? () => renderer.render(scene, camera) : draw;
+    window.DRAW = d2;
+    d2(); requestAnimationFrame(() => { d2(); window.READY = true; });
+    return;
   }
   // fit the tabletop camera: frontal, slight elevation, house fills the frame like the board crop
   const box = new THREE.Box3(); root.traverse((o) => { if (o.isMesh && !o.name.startsWith('tabletop')) box.expandByObject(o); });
