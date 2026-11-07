@@ -20,7 +20,7 @@ os.makedirs(TEX, exist_ok=True)
 # ------------------------------------------------------------------ parameters (tuned in compare rounds)
 P = dict(
     head_c=V((0, 0.0, 0.800)), head_rx=0.150, head_ry=0.138, head_rz_top=0.152, head_rz_bot=0.152,
-    cheek_amp=0.10, cheek_low=-0.40, chin_narrow=0.10,
+    cheek_amp=0.115, cheek_low=-0.40, chin_narrow=0.10,
     eye_x=0.067, eye_z=0.796, eye_r=0.046, eye_depth=0.62, eye_out=0.10,
     lid_up=47, lid_low=-42, lid_corner=4,
     brow_z=0.850,
@@ -95,7 +95,7 @@ def head_raw(d):
 
 
 BUMPS = [  # (direction, amplitude (fraction of radius), sigma radians)
-    (V((0.52, -0.78, -0.40)), 0.055, 0.33), (V((-0.52, -0.78, -0.40)), 0.055, 0.33),  # apple cheeks
+    (V((0.52, -0.78, -0.40)), 0.072, 0.31), (V((-0.52, -0.78, -0.40)), 0.072, 0.31),  # apple cheeks (fuller)
     (V((0, -0.97, -0.355)), 0.085, 0.064),  # nose button (tip)
     (V((0, -0.96, -0.22)), 0.012, 0.05),    # soft bridge
     (V((0.085, -0.96, -0.40)), 0.022, 0.040), (V((-0.085, -0.96, -0.40)), 0.022, 0.040),   # nostril wings
@@ -666,8 +666,8 @@ K.subsurf(K.surface('Underskirt', under, 128, 10, wrap_u=True, mat=M['under']), 
 HEAD_PARTS = ('Head', 'Ear', 'Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple',
               'HairCap', 'HairStrand', 'HairSwoop', 'FaceCurl', 'BunCore', 'Ringlet')
 piv = V((0, 0.012, 0.662))
-Rh = Matrix.Rotation(math.radians(P.get('head_yaw', 4)), 4, 'Z') @ Matrix.Rotation(math.radians(P.get('head_roll', -6)), 4, 'Y') \
-    @ Matrix.Rotation(math.radians(P.get('head_pitch', 3)), 4, 'X')
+Rh = Matrix.Rotation(math.radians(P.get('head_yaw', 0)), 4, 'Z') @ Matrix.Rotation(math.radians(P.get('head_roll', 0)), 4, 'Y') \
+    @ Matrix.Rotation(math.radians(P.get('head_pitch', 2)), 4, 'X')
 Mh = Matrix.Translation(piv) @ Rh @ Matrix.Translation(-piv)
 for o in list(bpy.context.scene.objects):
     if o.type == 'MESH' and o.name.startswith(HEAD_PARTS):
