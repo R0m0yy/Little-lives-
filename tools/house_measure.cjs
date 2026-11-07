@@ -35,7 +35,7 @@ const srv = http.createServer((req, res) => {
       console.log('CALIBRATION best', JSON.stringify(best));
     }
     await pg.screenshot({ path: path.join(OUT, `${tag}_${name}@2x.png`), timeout: 600000 });
-    if (name === 'ref') { measure = await pg.evaluate('window.MEASURE'); measure.frame_ms = await pg.evaluate(() => { const t0 = performance.now(); for (let i = 0; i < 3; i++) window.DRAW && window.DRAW(); return (performance.now() - t0) / 3; }); }
+    if (name === 'ref') { measure = await pg.evaluate('window.MEASURE'); measure.stats = await pg.evaluate(() => window.STATS && window.STATS()); measure.frame_ms = await pg.evaluate(() => { const t0 = performance.now(); for (let i = 0; i < 3; i++) window.DRAW && window.DRAW(); return (performance.now() - t0) / 3; }); }
     await ctx.close();
   }
   await b.close(); srv.close();

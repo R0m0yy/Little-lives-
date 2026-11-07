@@ -29,13 +29,13 @@ iou = float((a & bm).sum() / max(1, (a | bm).sum()))
 d = np.zeros(a.shape + (3,), np.uint8); d[:] = (20, 18, 24); d[a & bm] = (40, 200, 90); d[a & ~bm] = (230, 60, 60); d[~a & bm] = (60, 110, 240)
 Image.fromarray(d).save(os.path.join(Q, f'{tag}_maskdiff.png'))
 mean = sum(r[3] for r in ok) / max(1, len(ok)) * 100
-summ = {'tag': tag, 'house_height_px': HH, 'pass': npass, 'total': len(ok), 'mean_err_pct': mean, 'iou': iou, 'frame_ms': M.get('frame_ms'),
+summ = {'tag': tag, 'house_height_px': HH, 'pass': npass, 'total': len(ok), 'mean_err_pct': mean, 'iou': iou, 'frame_ms': M.get('frame_ms'), 'stats': M.get('stats'),
         'rows': [{'landmark': k, 'render': p, 'err_px': e, 'err_pct': None if pc is None else pc * 100} for k, p, e, pc in rows], 'camera': M.get('cam')}
 json.dump(summ, open(os.path.join(Q, f'{tag}_table.json'), 'w'), indent=1)
 md = [f'## {tag} — house landmarks vs reference (house height {HH:.0f} px, target <= 2 %)', '', '| landmark | ref | render | err px | % | |', '|---|---|---|---|---|---|']
 for k, p, e, pc in rows:
     md.append(f'| {k} | {R[k][0]:.0f}, {R[k][1]:.0f} | ' + ('— | — | — | missing |' if p is None else f'{p[0]:.0f}, {p[1]:.0f} | {e:.1f} | {pc*100:.1f} | {"ok" if pc <= TOL else "FAIL"} |'))
-md += ['', f'**{npass}/{len(ok)} landmarks within 2 %**, mean {mean:.2f} % · silhouette IoU **{iou:.3f}** (target 0.92)']
+md += ['', f'**{npass}/{len(ok)} landmarks within 2 %**, mean {mean:.2f} % · silhouette IoU **{iou:.3f}** (target 0.92)', f'stats: {M.get("stats")} · frame {M.get("frame_ms", 0):.1f} ms (SwiftShader, not device speed)']
 open(os.path.join(Q, f'{tag}_table.md'), 'w').write('\n'.join(md) + '\n')
 B = Image.open(os.path.join(ROOT, 'refs/design_board.png')).convert('RGB'); refi = B.crop((x0, y0, x1, y1)).resize(size, Image.LANCZOS)
 Image.blend(refi, ren, 0.5).save(os.path.join(Q, f'{tag}_onion.png'))

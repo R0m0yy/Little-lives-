@@ -182,6 +182,8 @@ def pierced(name, origin, u_dir, v_dir, L, Hh, keep, cell=0.0145, thick=0.032, m
                 f = bm.faces.new([vert(i, j), vert(i + 1, j), vert(i + 1, j + 1), vert(i, j + 1)])
                 for lp, (a, b) in zip(f.loops, [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]):
                     lp[uvl].uv = (a * du * 2, b * dv * 2)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+    bmesh.ops.dissolve_limit(bm, angle_limit=0.01, verts=bm.verts, edges=bm.edges)   # round 19: merge coplanar grid cells
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     ob = K.link(bpy.data.objects.new(name, me)); me.materials.append(mat or M['trim'])
     sm = ob.modifiers.new('sol', 'SOLIDIFY'); sm.thickness = thick; sm.offset = 0.0
@@ -231,13 +233,14 @@ def lathe_at(name, x, y, rows, **kw):
     return ob
 
 
-def turned_finial(name, x, y, z0, z1, r=0.045):
+def turned_finial(name, x, y, z0, z1, r=0.045, smooth=True, nu=16):
     """Lathe-turned finial from z0 to z1 (spire with bulbs and collars), round 12."""
     h = z1 - z0
     prof = [(0.0, 1.0), (0.18, 0.985), (0.30, 0.94), (0.22, 0.86), (0.42, 0.80), (0.62, 0.74), (0.66, 0.68), (0.40, 0.63), (0.28, 0.58),
             (0.55, 0.52), (0.85, 0.44), (0.95, 0.36), (0.80, 0.28), (0.45, 0.22), (0.50, 0.15), (0.75, 0.10), (0.80, 0.0)]
     rows = [(r * a, r * a, z0 + h * t) for a, t in prof]
-    return K.subsurf(lathe_at(name, x, y, rows, nu=16, mat=M['trim']), 1)
+    ob = lathe_at(name, x, y, rows, nu=nu, mat=M['trim'])
+    return K.subsurf(ob, 1) if smooth else ob
 
 
 def cresting_keep(P=0.16, Hc=0.17):
@@ -834,9 +837,9 @@ def bed(x, y, z, w=1.0, l=1.25, quilt='quilt'):
     fb_y = y - l / 2 + 0.02
     poly('footboard', [(x - w / 2, fb_y, z + 0.12), (x + w / 2, fb_y, z + 0.12), (x + w / 2, fb_y, z + 0.50), (x, fb_y, z + 0.58), (x - w / 2, fb_y, z + 0.50)], M['wood'], 0.045)
     for px_, py_, ph in ((x - w / 2, hb_y, 1.02), (x + w / 2, hb_y, 1.02), (x - w / 2, fb_y, 0.62), (x + w / 2, fb_y, 0.62)):
-        turned_finial('bedpost', px_, py_, z, z + ph, r=0.04)
+        turned_finial('bedpost', px_, py_, z, z + ph, r=0.04, smooth=False, nu=10)   # round 19: lighter
     for sx in (-0.22, 0.22):
-        K.subsurf(K.ellipsoid('pillow', V((x + sx * w, y + l / 2 - 0.2, z + 0.48)), (w * 0.21, 0.1, 0.055), mat=M['linen'], nu=16, nv=10), 1)
+        K.ellipsoid('pillow', V((x + sx * w, y + l / 2 - 0.2, z + 0.48)), (w * 0.21, 0.1, 0.055), mat=M['linen'], nu=14, nv=9)
 
 
 def cabinet(x, y, z, w, h, d=0.4, mat='wood'):
@@ -1310,6 +1313,77 @@ lm('plinth_L', (PL_L, -0.75, 0.12)); lm('plinth_R', (PL_R, -0.75, 0.12)); lm('pl
 for o in bpy.context.scene.objects:
     if o.data:
         o.data.name = o.name
+# ---- round 19 budget: merge every static mesh into one object (one glTF primitive per material => ~1 draw call per
+# material). Doors stay separate nodes so they can swing; gameplay data lives on empties (Room_/Door_/Stair_/LM_ ...).
+# ---- round 19b: fold plain-colour materials into a few vertex-coloured class materials (roughness / metal / gloss),
+# so the merged mesh needs ~1 draw call per class instead of 1 per colour. Textured, emissive and glass materials stay.
+def _principled(m):
+    return m.node_tree.nodes.get('Principled BSDF') if m and m.use_nodes else None
+
+
+CLASS_MATS = {}
+
+
+def _class_key(m):
+    pb = _principled(m)
+    if pb is None or pb.inputs['Base Color'].is_linked:
+        return None
+    if pb.inputs['Emission Strength'].default_value > 0 or pb.inputs['Transmission Weight'].default_value > 0:
+        return None
+    r = pb.inputs['Roughness'].default_value; met = pb.inputs['Metallic'].default_value; coat = pb.inputs['Coat Weight'].default_value
+    return ('metal' if met > 0.5 else 'dielectric', 'gloss' if r < 0.3 else 'satin' if r < 0.62 else 'matte', coat > 0.2)
+
+
+def _class_mat(key):
+    if key not in CLASS_MATS:
+        kind, fin, coat = key
+        mm = K.material(f'palette_{kind}_{fin}{"_coat" if coat else ""}', vcol=True, rough={'gloss': 0.2, 'satin': 0.45, 'matte': 0.8}[fin],
+                        metal=1.0 if kind == 'metal' else 0.0, coat=0.5 if coat else 0.0)
+        CLASS_MATS[key] = mm
+    return CLASS_MATS[key]
+
+
+for o in [o for o in bpy.context.scene.objects if o.type == 'MESH']:
+    if o.modifiers:
+        K.apply_mods(o)
+    me = o.data
+    if not me.materials:
+        continue
+    attr = me.color_attributes.get('Col') or me.color_attributes.new('Col', 'FLOAT_COLOR', 'CORNER')
+    if attr.domain != 'CORNER':
+        me.color_attributes.remove(attr); attr = me.color_attributes.new('Col', 'FLOAT_COLOR', 'CORNER')
+    remap = {}
+    for i, m in enumerate(me.materials):
+        key = _class_key(m)
+        if key is not None:
+            pb = _principled(m); remap[i] = (_class_mat(key), tuple(pb.inputs['Base Color'].default_value))
+    newmats = []
+    for i, m in enumerate(me.materials):
+        tgt = remap[i][0] if i in remap else m
+        if tgt not in newmats:
+            newmats.append(tgt)
+    for poly in me.polygons:
+        i = poly.material_index
+        c = remap[i][1] if i in remap else (1.0, 1.0, 1.0, 1.0)
+        for li in poly.loop_indices:
+            attr.data[li].color = c
+        poly.material_index = newmats.index(remap[i][0] if i in remap else me.materials[i])
+    me.materials.clear()
+    for m in newmats:
+        me.materials.append(m)
+    me.color_attributes.active_color = attr
+
+static = [o for o in bpy.context.scene.objects if o.type == 'MESH' and not o.name.startswith(('Door_', 'tabletop'))]   # tabletop stays separate (not part of the house)
+for o in static:
+    if o.modifiers:
+        K.apply_mods(o)
+bpy.ops.object.select_all(action='DESELECT')
+for o in static:
+    o.select_set(True)
+bpy.context.view_layer.objects.active = static[0]
+bpy.ops.object.join()
+house_ob = bpy.context.view_layer.objects.active
+house_ob.name = 'House_static'; house_ob.data.name = 'House_static'
 K.export_glb(OUT)
 tris = sum(len(p.vertices) - 2 for o in bpy.context.scene.objects if o.data for p in o.data.polygons)
 print('EXPORTED', OUT, 'objects', len(bpy.context.scene.objects), 'tris', tris)

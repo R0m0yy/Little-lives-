@@ -94,6 +94,10 @@ new GLTFLoader().load(q.get('model') || '../assets/house/house.glb', async (g) =
     window.FIT = (c) => fitHouseCamera(root, camera, ref, K, { ...HOUSE_CAM, ...c });   // calibration hook
     const d2 = MASK ? () => renderer.render(scene, camera) : draw;
     window.DRAW = d2;
+    renderer.info.autoReset = false;
+    window.STATS = () => { renderer.info.reset(); renderer.render(scene, camera); const r = renderer.info.render;
+      let meshes = 0, tris = 0; root.traverse((o) => { if (o.isMesh) { meshes++; const g = o.geometry; tris += (g.index ? g.index.count : g.attributes.position.count) / 3; } });
+      return { calls: r.calls, triangles_drawn: r.triangles, meshes, scene_tris: Math.round(tris) }; };
     d2(); requestAnimationFrame(() => { d2(); window.READY = true; });
     return;
   }
