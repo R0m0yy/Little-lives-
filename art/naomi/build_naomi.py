@@ -21,9 +21,9 @@ os.makedirs(TEX, exist_ok=True)
 P = dict(
     head_c=V((0, 0.0, 0.800)), head_rx=0.150, head_ry=0.138, head_rz_top=0.152, head_rz_bot=0.152,
     cheek_amp=0.10, cheek_low=-0.40, chin_narrow=0.10,
-    eye_x=0.073, eye_z=0.786, eye_r=0.046, eye_depth=0.62, eye_out=0.10,
-    lid_up=40, lid_low=-33, lid_corner=4,
-    brow_z=0.842,
+    eye_x=0.067, eye_z=0.796, eye_r=0.046, eye_depth=0.62, eye_out=0.10,
+    lid_up=47, lid_low=-42, lid_corner=4,
+    brow_z=0.850,
     mouth_z=0.703, nose_z=0.742,
     collar_z=0.645, waist_z=0.474, hem_z=0.128, hem_rx=0.235, hem_ry=0.205,
     shoulder=V((0.100, 0.0, 0.598)), elbow=V((0.156, -0.018, 0.452)), wrist=V((0.178, -0.092, 0.338)),
@@ -112,7 +112,7 @@ def head_point(d):
     for c, a, s in BUMPS:
         k += a * gauss(d, c, s)
     for sg in (1, -1):  # eye sockets
-        k -= 0.06 * gauss(d, eye_dir(sg), 0.20)
+        k -= 0.022 * gauss(d, eye_dir(sg), 0.20)   # shallow socket: no dark under-eye hollow
     return C + (p - C) * k
 
 
@@ -221,7 +221,7 @@ for sg in (1, -1):
         def g(uu, vv):
             a = (uu * 2 - 1) * math.radians(92)
             e = edge(max(-am, min(am, a)), top)
-            far = math.radians(62) if top else math.radians(-58)
+            far = math.radians(62) if top else math.radians(-48)
             b = e + (far - e) * vv
             band = abs(b - e)
             R = er * (1.030 + (0.035 if top else 0.014) * K.smoothstep(0.0, math.radians(12 if top else 7), band))
@@ -238,15 +238,15 @@ for sg in (1, -1):
         d = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
         pts.append(c + d * er * 1.075)
         nrm.append(d)
-    K.subsurf(K.sweep(f'Lash{sg}', pts, lambda t: (0.0042 + 0.0035 * t ** 1.5, 0.0016 + 0.0018 * t), nprof=8, mat=M['lash'], normals=nrm), 1)
-    for k, (a0, ln, curl) in enumerate([(0.70, 0.014, 0.6), (0.86, 0.018, 0.8), (1.02, 0.016, 1.0)]):
+    K.subsurf(K.sweep(f'Lash{sg}', pts, lambda t: (0.0040 + 0.0050 * t ** 1.6, 0.0016 + 0.0020 * t), nprof=8, mat=M['lash'], normals=nrm), 1)
+    for k, (a0, ln, curl) in enumerate([(0.98, 0.026, 0.9)]):   # one neat outer flick
         a = a0 * am
         b = edge(min(am, a), True)
         d0 = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
         p0 = c + d0 * er * 1.07
         tip_dir = (r * 0.9 + u * 0.6 + f * 0.2).normalized()
         lp = [p0 + (tip_dir * t * ln + u * (t * t) * ln * curl * 0.5) for t in [i / 7 for i in range(8)]]
-        K.sweep(f'LashFlick{sg}{k}', lp, lambda t: (0.0022 * (1 - t) + 0.0003, 0.0011 * (1 - t) + 0.0002), nprof=6, mat=M['lash'], up=f)
+        K.subsurf(K.sweep(f'LashFlick{sg}{k}', lp, lambda t: (0.0040 * (1 - t) ** 0.8 + 0.0003, 0.0017 * (1 - t) + 0.0002), nprof=8, mat=M['lash'], up=f), 1)
     # lid crease: soft darker line above the upper lid
     pts, nrm = [], []
     for k in range(30):

@@ -119,7 +119,7 @@ def weave(path, W=512, H=512, base=(218, 190, 158), seed=5):
     im.filter(ImageFilter.GaussianBlur(0.5)).save(path)
 
 
-def iris(path, S=512, iris_r=0.66, pupil_r=0.36, dark=(7, 6, 8), mid=(34, 40, 58), ring=(14, 8, 8), sclera=(246, 240, 236)):
+def iris(path, S=512, iris_r=0.66, pupil_r=0.36, dark=(7, 6, 8), mid=(34, 40, 58), ring=(14, 8, 8), sclera=(246, 240, 236), ring_col=(88, 104, 132)):
     """Eye texture in planar front projection: (0.5,0.5) = cornea centre; iris_r etc. as fraction of eyeball radius."""
     im = Image.new('RGB', (S, S), sclera)
     px = im.load()
@@ -148,6 +148,8 @@ def iris(path, S=512, iris_r=0.66, pupil_r=0.36, dark=(7, 6, 8), mid=(34, 40, 58
                 lower = max(0, v) ** 1.2  # warmer, lighter lower iris (light passes through cornea)
                 w = (0.35 + 0.65 * math.sin(math.pi * t)) * (0.45 + 0.55 * lower) + f * 0.08
                 c = tuple(int(dark[i] * (1 - w) + mid[i] * w) for i in range(3))
+                rk = 0.75 * math.exp(-((t - 0.80) ** 2) / (2 * 0.09 ** 2)) * (0.75 + 0.25 * f)   # blue-grey iris ring
+                c = tuple(int(c[i] * (1 - rk) + ring_col[i] * rk) for i in range(3))
             px[x, y] = c
     im = im.filter(ImageFilter.GaussianBlur(1.0))
     # painted catch-lights (stylised, like the board): big soft upper one, small lower one
