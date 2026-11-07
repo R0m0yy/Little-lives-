@@ -33,14 +33,15 @@ sc.render.resolution_x, sc.render.resolution_y = int(W), int(H)
 for o in list(sc.objects):
     if o.name.startswith('Light_'):
         fire = o.name.startswith('Light_fire')
-        ld = bpy.data.lights.new(o.name + '_pt', 'POINT'); ld.color = (1.0, 0.48, 0.17) if fire else (1.0, 0.62, 0.30)
+        ld = bpy.data.lights.new(o.name + '_pt', 'POINT'); ld.color = (1.0, 0.42, 0.10) if fire else (1.0, 0.58, 0.20)   # amber (round 18)
         ld.energy = 60 if fire else 110; ld.shadow_soft_size = 0.25
         lo = bpy.data.objects.new(o.name + '_pt', ld); lo.location = o.matrix_world.translation; sc.collection.objects.link(lo)
 sd = bpy.data.lights.new('Front', 'SUN'); sd.color = (1.0, 0.85, 0.66); sd.energy = 1.2; sd.angle = math.radians(12)
 so = bpy.data.objects.new('Front', sd); sc.collection.objects.link(so)
 so.rotation_mode = 'QUATERNION'; so.rotation_quaternion = (-v3((3, 4, 12))).normalized().to_track_quat('-Z', 'Y')
 w = bpy.data.worlds.new('W'); w.use_nodes = True
-w.node_tree.nodes['Background'].inputs['Color'].default_value = (0.10, 0.11, 0.14, 1); w.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.6
+w.node_tree.nodes['Background'].inputs['Color'].default_value = (0.08, 0.10, 0.15, 1)   # cool dusk
+w.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.6
 sc.world = w
 # emissive materials (lamp shades / bulbs / fire / glass) keep their glTF emission
 sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = SAMPLES; sc.cycles.use_denoising = True

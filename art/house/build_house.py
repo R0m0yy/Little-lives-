@@ -749,6 +749,14 @@ M.update(mirror=K.material('mirror', base='#c9d2dc', metal=0.35, rough=0.06), ve
          cabGlass=K.material('cabinet_glass', base='#d8e4ec', rough=0.02, transmission=0.9, ior=1.45))
 
 
+def disc(name, c, r, h, mat, seg=14, rx=90.0):
+    """Cylinder/disc tilted about its OWN centre (round 18b: rotation_euler on world-space meshes rotated them about
+    the world origin, which flung plates, clock faces, pans and knobs across the house)."""
+    ob = cyl(name, (0, 0, 0), r, h, mat, seg)
+    ob.data.transform(Matrix.Translation(c) @ Matrix.Rotation(math.radians(rx), 4, 'X'))
+    return ob
+
+
 def turned_leg(x, y, z0, h, r=0.026, mat='wood'):
     prof = [(0.75, 1.0), (0.95, 0.96), (0.95, 0.86), (0.60, 0.82), (0.55, 0.62), (0.85, 0.50), (0.60, 0.40), (0.45, 0.20), (0.62, 0.08), (0.50, 0.0)]
     return lathe_at('leg', x, y, [(r * a, r * a, z0 + h * t) for a, t in prof], nu=10, mat=M[mat])
@@ -903,7 +911,7 @@ def dresser(x, y, z):
     for r_ in range(2):
         bx('dresser_rail', (x, y + 0.02, z + 0.98 + r_ * 0.3), (0.64, 0.04, 0.015), M['woodLight'], 0)
         for k in range(4):
-            cyl('plate', (x - 0.24 + 0.16 * k, y + 0.06, z + 1.08 + r_ * 0.3), 0.065, 0.01, M['pot'], 16).rotation_euler = (math.radians(80), 0, 0)
+            disc('plate', (x - 0.24 + 0.16 * k, y + 0.06, z + 1.08 + r_ * 0.3), 0.065, 0.01, M['pot'], rx=80)
 
 
 # ---------------- dressing per room (walk paths: front band y<0.62 and door openings kept clear)
@@ -990,7 +998,7 @@ def candlestick(x, y, z):
 def mantel_clock(x, y, z):
     bx('clock_case', (x, y, z + 0.09), (0.16, 0.08, 0.16), M['wood'], 0.01)
     K.ellipsoid('clock_dome', V((x, y, z + 0.17)), (0.08, 0.04, 0.05), mat=M['wood'], nu=12, nv=6)
-    cyl('clock_face', (x, y - 0.042, z + 0.10), 0.05, 0.005, M['china'], 16).rotation_euler = (math.radians(90), 0, 0)
+    disc('clock_face', (x, y - 0.042, z + 0.10), 0.05, 0.005, M['china'], rx=90)
 
 
 def back_picture(x, z, w, h, room_y=None, art=None):
@@ -1019,7 +1027,7 @@ def doll(x, y, z, mat='toyR'):
 def pans(x, z):
     bx('pan_rail', (x, YB - 0.015, z), (0.6, 0.02, 0.02), M['iron'], 0.003)
     for k in range(3):
-        cyl('pan', (x - 0.2 + 0.2 * k, YB - 0.03, z - 0.12), 0.06 + 0.01 * k, 0.015, M['copper'], 14).rotation_euler = (math.radians(90), 0, 0)
+        disc('pan', (x - 0.2 + 0.2 * k, YB - 0.03, z - 0.12), 0.06 + 0.01 * k, 0.015, M['copper'], rx=90)
 
 
 def radio(x, y, z):
@@ -1027,7 +1035,7 @@ def radio(x, y, z):
     K.ellipsoid('radio_top', V((x, y, z + 0.4)), (0.16, 0.1, 0.06), mat=M['wood'], nu=12, nv=6)
     bx('radio_grille', (x, y - 0.101, z + 0.26), (0.22, 0.005, 0.16), M['linen'], 0.003)
     for dx in (-0.07, 0.07):
-        cyl('radio_knob', (x + dx, y - 0.105, z + 0.10), 0.018, 0.012, M['brass'], 10).rotation_euler = (math.radians(90), 0, 0)
+        disc('radio_knob', (x + dx, y - 0.105, z + 0.10), 0.018, 0.012, M['brass'], rx=90)
 
 
 # living
