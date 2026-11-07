@@ -9,7 +9,8 @@ export function studioLights(scene, { key = 2.8, warm = 0xffd2a8 } = {}) {
   scene.add(k);
   const fill = new THREE.DirectionalLight(0xd8d0ff, 0.7); fill.position.set(-2.5, 1.5, 2.0); scene.add(fill);
   const rim = new THREE.DirectionalLight(0xfff0e0, 1.6); rim.position.set(-1.5, 2.5, -2.5); scene.add(rim);
-  return { hemi, key: k, fill, rim };
+  const rimWarm = new THREE.DirectionalLight(0xffc890, 2.2); rimWarm.position.set(2.2, 2.6, -2.4); scene.add(rimWarm);   // warm hair rim (round 23)
+  return { hemi, key: k, fill, rim, rimWarm };
 }
 
 export function tuneCharacterMaterials(root, renderer) {

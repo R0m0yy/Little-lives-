@@ -57,6 +57,7 @@ M = dict(
     hair=K.material('hair', base='#120b0c', rough=0.30, aniso=0.65, spec=0.65, sheen=0.15, sheen_tint='#56627e', sheen_rough=0.4),
     hairCap=K.material('hair_cap', base='#060304', rough=0.6, aniso=0.2, spec=0.35),
     bun=K.material('hair_bun', base='#3a2016', rough=0.36, aniso=0.5, spec=0.55, sheen=0.35, sheen_tint='#c08060', sheen_rough=0.45),
+    hairHi=K.material('hair_hi', base='#3a2216', rough=0.30, aniso=0.65, spec=0.65, sheen=0.25, sheen_tint='#c08a60', sheen_rough=0.4),
     bunHi=K.material('hair_bunHi', base='#6a3a22', rough=0.34, aniso=0.5, spec=0.55, sheen=0.4, sheen_tint='#e0a070', sheen_rough=0.4),
     blouse=K.material('fabric_blouse', tex=os.path.join(TEX, 'weave.png'), rough=0.85, sheen=0.35, sheen_tint='#f0d8c8', sheen_rough=0.6),
     apron=K.material('fabric_apron', tex=os.path.join(TEX, 'apron.png'), rough=0.8, sheen=0.5, sheen_rough=0.6),
@@ -352,7 +353,8 @@ def clump(d, n=11, depth=0.25):
 
 def cap_point(d, lift=0.0):
     kp = hair_keep(d)
-    k = K.smoothstep(-0.01, 0.06, kp)    # quick rounded lip at the hairline
+    back = K.smoothstep(-0.2, 0.4, d.y)   # behind the ears / nape: taper gently instead of a hard lip (round 23)
+    k = K.smoothstep(-0.01, 0.06 + 0.22 * back, kp)
     sink = 0.05 * K.smoothstep(0.0, -0.08, kp)  # outside the hairline the cap dives under the skin -> smooth hairline
     p = head_point(d)
     return C + (p - C) * (1 + hair_thick(d) * k * clump(d) - sink + lift)
@@ -434,10 +436,27 @@ for k in range(NS):
         continue  # hairline + some crown starts; skip the bun area
     via = jitter(slerp(d0, bun_dir, 0.5).normalized(), 0.05, sr)
     ds = dirs_path([d0, via, bun_dir], 30)
-    strand(f'HairStrand{count}', ds, sr.uniform(0.0075, 0.011), sr.uniform(0.0045, 0.0062), sr.uniform(0.002, 0.007), M['hair'],
+    strand(f'HairStrand{count}', ds, sr.uniform(0.0075, 0.011), sr.uniform(0.0045, 0.0062), sr.uniform(0.002, 0.007),
+           M['hairHi'] if sr.random() < 0.25 else M['hair'],
            wave=0.0015, seed=k)
     count += 1
 print('scalp strands', count)
+
+# (a2) nape + behind-the-ear strands: start under the skin just below the hair edge and sweep up into the hair
+nr = random.Random(23)
+nn = 0
+for k in range(3000):
+    zz = 1 - 2 * (k + 0.5) / 3000
+    rr = math.sqrt(1 - zz * zz)
+    d0 = V((math.cos(golden * k) * rr, math.sin(golden * k) * rr, zz))
+    kp = hair_keep(d0)
+    if not (-0.07 < kp < -0.015) or d0.y < -0.15 or nr.random() < 0.55:
+        continue
+    via = jitter(slerp(d0, bun_dir, 0.35).normalized(), 0.04, nr)
+    strand(f'HairNape{nn}', dirs_path([d0, via, slerp(d0, bun_dir, 0.75).normalized()], 24), nr.uniform(0.006, 0.009), nr.uniform(0.0035, 0.005),
+           nr.uniform(0.002, 0.005), M['hairHi'] if nr.random() < 0.2 else M['hair'], seed=900 + k)
+    nn += 1
+print('nape strands', nn)
 
 # (b) side-swept forehead lock as a fan of strands from the parting across the forehead
 part = V((0.45, -0.50, 0.74))
@@ -723,7 +742,7 @@ K.subsurf(K.surface('Underskirt', under, 128, 10, wrap_u=True, mat=M['under']), 
 
 # ------------------------------------------------------------------ pose (static, no rig): relaxed stance, head turn + tilt
 HEAD_PARTS = ('Head', 'Ear', 'Eye', 'Cornea', 'Lid', 'Lash', 'Crease', 'Brow', 'MouthLine', 'LipLower', 'LipUpper', 'Dimple',
-              'HairCap', 'HairStrand', 'HairSwoop', 'FaceCurl', 'BunCore', 'BunLock', 'BunCurl')
+              'HairCap', 'HairStrand', 'HairNape', 'HairSwoop', 'FaceCurl', 'BunCore', 'BunLock', 'BunCurl')
 piv = V((0, 0.012, 0.662))
 Rh = Matrix.Rotation(math.radians(P.get('head_yaw', 0)), 4, 'Z') @ Matrix.Rotation(math.radians(P.get('head_roll', 0)), 4, 'Y') \
     @ Matrix.Rotation(math.radians(P.get('head_pitch', 2)), 4, 'X')
