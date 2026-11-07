@@ -17,6 +17,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { fitHouseCamera, HOUSE_CAM } from './lib/housecam.js';
+import { loadCharacter, placeAt } from './lib/characters.js';
 
 const q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -100,6 +101,17 @@ new GLTFLoader().load(q.get('model') || '../assets/house/house.glb', async (g) =
       return { calls: r.calls, triangles_drawn: r.triangles, meshes, scene_tris: Math.round(tris) }; };
     d2(); requestAnimationFrame(() => { d2(); window.READY = true; });
     return;
+  }
+  // ?char=<glb url>&at=<interaction id>[,<id>...] : drop in characters (web/lib/characters.js contract)
+  if (q.get('char')) {
+    const data = await (await fetch('../assets/house/house_data.json')).json();
+    const ids = (q.get('at') || 'living.fireplace.0').split(',');
+    window.CHARS = [];
+    for (const id of ids) {
+      const ip = data.interactions.find((i) => i.id === id); if (!ip) continue;
+      const c = await loadCharacter(q.get('char'), renderer, { normalizeTo: q.get('normalize') ? +q.get('normalize') : null });
+      scene.add(placeAt(c.object, ip)); window.CHARS.push({ at: id, ...c.report });
+    }
   }
   // ?ips=1 : interaction-point overlay (stand point sphere + facing arrow, colour by kind) from IP_ empties
   if (q.get('ips') === '1') {
