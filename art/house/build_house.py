@@ -948,6 +948,145 @@ place(trunk, ACX0 + 0.35, 1.2, z, room='attic_c')
 place(armchair, LX0 + 0.55, 0.95, z, 0.3, room='loft', mat='linen'); place(plant, LX0 + 1.15, 1.45, z, room='loft', s=1.0)
 place(toy_chest, LX0 + 1.2, 0.7, z, room='loft'); rug(LX0 + 0.8, 0.95, z, 1.1, 0.9); place(lamp, LX0 + 0.25, 1.55, z, room='loft', h=0.5)
 place(window_seat, X(1137), 0.3, z, room='attic_l'); place(trunk, X(1137) - 0.5, 1.1, z, room='attic_l'); place(trunk, X(1137) + 0.45, 1.2, z, room='attic_l')
+FLOWERS = [K.material('flower_pink', base='#e86aa0', rough=0.6), K.material('flower_white', base='#f6eef0', rough=0.6),
+           K.material('flower_magenta', base='#c03070', rough=0.6), K.material('flower_lilac', base='#c890e0', rough=0.6)]
+
+# ---------------- clutter + small fixtures (round 17, H3): collector's-dollhouse density, walk band y<0.62 + doors clear
+ART = [K.material(f'picture_art_{i}', base=c, rough=0.7) for i, c in enumerate(['#5e7a5a', '#8a6a4a', '#5a6a8a', '#9a5a5a', '#7a7050'])]
+M.update(sconce=K.material('lamp_sconce', base='#ffe2b0', emission='#ffc070', emission_strength=6.0), china=K.material('china', base='#f2efe8', rough=0.25, coat=0.5),
+         fruit=K.material('fruit', base='#d06030', rough=0.5), bread=K.material('bread', base='#c08a50', rough=0.8), copper=K.material('metal_copper', base='#c87850', metal=1.0, rough=0.3))
+crr = random.Random(17)
+
+
+def vase_flowers(x, y, z, s=1.0):
+    lathe_at('vase', x, y, [(0.0, 0.0, z + 0.16 * s), (0.025 * s, 0.025 * s, z + 0.16 * s), (0.02 * s, 0.02 * s, z + 0.12 * s), (0.045 * s, 0.045 * s, z + 0.06 * s),
+                             (0.03 * s, 0.03 * s, z + 0.005), (0.0, 0.0, z)], nu=10, mat=M['china'])
+    for k in range(6):
+        a = k / 6 * K.TAU
+        K.ellipsoid('bloom', V((x + math.cos(a) * 0.035 * s, y + math.sin(a) * 0.035 * s, z + 0.2 * s + crr.uniform(0, 0.03) * s)), (0.022 * s, 0.022 * s, 0.018 * s),
+                    mat=FLOWERS[k % 4], nu=8, nv=5)
+
+
+def teaset(x, y, z):
+    lathe_at('teapot', x, y, [(0.0, 0.0, z + 0.10), (0.02, 0.02, z + 0.10), (0.05, 0.05, z + 0.07), (0.055, 0.055, z + 0.04), (0.035, 0.035, z + 0.0), (0.0, 0.0, z)], nu=12, mat=M['china'])
+    for dx in (-0.11, 0.11):
+        cyl('saucer', (x + dx, y - 0.04, z + 0.004), 0.035, 0.008, M['china'], 12)
+        cyl('cup', (x + dx, y - 0.04, z + 0.025), 0.022, 0.035, M['china'], 10, 0.018)
+
+
+def books_stack(x, y, z, n=3):
+    zz = z
+    for k in range(n):
+        h = crr.uniform(0.025, 0.04)
+        bx('book', (x + crr.uniform(-0.01, 0.01), y, zz + h / 2), (0.16, 0.12, h), BOOKS[k % 4], 0.003); zz += h
+
+
+def candlestick(x, y, z):
+    lathe_at('candlestick', x, y, [(0.0, 0.0, z + 0.16), (0.012, 0.012, z + 0.16), (0.012, 0.012, z + 0.10), (0.02, 0.02, z + 0.06), (0.01, 0.01, z + 0.04),
+                                   (0.035, 0.035, z + 0.01), (0.0, 0.0, z)], nu=10, mat=M['brass'])
+    K.ellipsoid('flame', V((x, y, z + 0.18)), (0.008, 0.008, 0.016), mat=M['fire'], nu=6, nv=5)
+
+
+def mantel_clock(x, y, z):
+    bx('clock_case', (x, y, z + 0.09), (0.16, 0.08, 0.16), M['wood'], 0.01)
+    K.ellipsoid('clock_dome', V((x, y, z + 0.17)), (0.08, 0.04, 0.05), mat=M['wood'], nu=12, nv=6)
+    cyl('clock_face', (x, y - 0.042, z + 0.10), 0.05, 0.005, M['china'], 16).rotation_euler = (math.radians(90), 0, 0)
+
+
+def back_picture(x, z, w, h, room_y=None, art=None):
+    yy = (room_y if room_y is not None else YB) - 0.012
+    bx('frame', (x, yy, z), (w, 0.02, h), M['frame'], 0.006)
+    bx('art', (x, yy - 0.011, z), (w - 0.05, 0.004, h - 0.05), art or crr.choice(ART), 0)
+
+
+def sconce(x, z):
+    bx('sconce_plate', (x, YB - 0.012, z), (0.05, 0.02, 0.09), M['brass'], 0.004)
+    K.sweep('sconce_arm', [V((x, YB - 0.02, z)), V((x, YB - 0.07, z + 0.03))], lambda t: (0.008, 0.008), nprof=6, mat=M['brass'])
+    lathe_at('sconce_shade', x, YB - 0.07, [(0.025, 0.025, z + 0.10), (0.04, 0.04, z + 0.05), (0.03, 0.03, z + 0.035)], nu=10, mat=M['sconce'])
+
+
+def toy_blocks(x, y, z):
+    for k in range(5):
+        bx('block', (x + crr.uniform(-0.08, 0.08), y + crr.uniform(-0.06, 0.06), z + 0.025 + (0.05 if k == 4 else 0)), (0.05, 0.05, 0.05),
+           M[['toyR', 'toyB', 'toyY'][k % 3]], 0.004)
+
+
+def doll(x, y, z, mat='toyR'):
+    K.ellipsoid('doll_dress', V((x, y, z + 0.06)), (0.035, 0.035, 0.06), mat=M[mat], nu=10, nv=6)
+    K.ellipsoid('doll_head', V((x, y, z + 0.14)), (0.025, 0.025, 0.027), mat=M['china'], nu=10, nv=6)
+
+
+def pans(x, z):
+    bx('pan_rail', (x, YB - 0.015, z), (0.6, 0.02, 0.02), M['iron'], 0.003)
+    for k in range(3):
+        cyl('pan', (x - 0.2 + 0.2 * k, YB - 0.03, z - 0.12), 0.06 + 0.01 * k, 0.015, M['copper'], 14).rotation_euler = (math.radians(90), 0, 0)
+
+
+def radio(x, y, z):
+    bx('radio', (x, y, z + 0.2), (0.32, 0.2, 0.4), M['wood'], 0.02)
+    K.ellipsoid('radio_top', V((x, y, z + 0.4)), (0.16, 0.1, 0.06), mat=M['wood'], nu=12, nv=6)
+    bx('radio_grille', (x, y - 0.101, z + 0.26), (0.22, 0.005, 0.16), M['linen'], 0.003)
+    for dx in (-0.07, 0.07):
+        cyl('radio_knob', (x + dx, y - 0.105, z + 0.10), 0.018, 0.012, M['brass'], 10).rotation_euler = (math.radians(90), 0, 0)
+
+
+# living
+z = F1
+for dx in (-0.42, 0.42):
+    candlestick(cxl + dx, YB - 0.24, z + 1.15)
+mantel_clock(cxl, YB - 0.24, z + 1.15); vase_flowers(cxl + 0.24, YB - 0.24, z + 1.15, 0.8)
+teaset(cxl, 1.05, z + 0.32); back_picture(xa0 + 0.35, z + 1.25, 0.26, 0.32); sconce(xa0 + 0.35, z + 0.9); sconce(xa1 - 0.3, z + 0.95)
+back_picture(xa1 - 0.3, z + 1.3, 0.24, 0.3)
+# dining
+z = F1
+lathe_at('fruit_bowl', 0.02, 1.15, [(0.07, 0.07, z + 0.70), (0.06, 0.06, z + 0.67), (0.03, 0.03, z + 0.645), (0.0, 0.0, z + 0.645)], nu=12, mat=M['china'])
+for k in range(5):
+    K.ellipsoid('fruit', V((0.02 + 0.03 * math.cos(k * 1.3), 1.15 + 0.03 * math.sin(k * 1.3), z + 0.70)), (0.022, 0.022, 0.022), mat=M['fruit'] if k % 2 else M['leaf'], nu=8, nv=6)
+for dx in (-0.2, 0.22):
+    for dy in (0.9, 1.4):
+        cyl('placeplate', (dx, dy, z + 0.645), 0.055, 0.008, M['china'], 14)
+candlestick(-0.22, 1.15, z + 0.645); candlestick(0.26, 1.15, z + 0.645)
+back_picture(xc0 + 0.3, z + 1.3, 0.26, 0.3); sconce(xc1 - 0.25, z + 1.1)
+# kitchen
+pans(xk0 + 0.62, F1 + 1.75); bx('bread', (xk0 + 0.75, 1.15, F1 + 0.66), (0.14, 0.07, 0.05), M['bread'], 0.02)
+lathe_at('kettle_k', xk1 - 0.55, YB - 0.32, [(0.0, 0.0, F1 + 1.06), (0.03, 0.03, F1 + 1.05), (0.07, 0.07, F1 + 1.0), (0.065, 0.065, F1 + 0.95), (0.0, 0.0, F1 + 0.95)], nu=12, mat=M['copper'])
+cyl('pot_k', (xk1 - 0.33, YB - 0.32, F1 + 1.0), 0.07, 0.1, M['iron'], 14)
+# master
+z = F2
+vase_flowers(cxl - 0.42, YB - 0.2, z + 0.5, 0.7); books_stack(cxl + 1.08, YB - 0.22, z + 0.5, 2)
+for k in range(3):
+    cyl('bottle', (xa0 + 0.2, 0.95 + 0.07 * k, z + 0.68), 0.015, 0.08, M['cabGlass'] if k % 2 else M['china'], 8)
+sconce(cxl - 0.05, z + 1.0); sconce(cxl + 0.75, z + 1.0)
+# sitting
+z = F2
+radio(XI[1][1] - 0.25, YB - 0.75, z); toy_blocks(0.35, 0.62, z); vase_flowers(-0.05, 0.85, z + 0.36, 0.7)
+back_picture(0.35, z + 1.25, 0.28, 0.3); doll(-0.62, 0.62, z + 0.43)
+# bath
+z = F2
+bx('towel_stack', (xk0 + 0.25, YB - 0.22, z + 0.88), (0.12, 0.1, 0.06), M['quilt'], 0.01); vase_flowers(xk0 + 1.35, YB - 0.2, z + 0.0, 1.0)
+cyl('soap', (xk0 + 0.32, YB - 0.2, z + 0.85), 0.02, 0.015, M['rose'], 8)
+# elias
+z = F3
+books_stack(cxl + 0.2, YB - 0.25, z + 0.62, 4); back_picture(xa0 + 0.45, z + 1.25, 0.34, 0.24); back_picture(cxl + 0.45, z + 1.45, 0.22, 0.16)
+bx('model_ship_hull', (xa1 - 0.36, 1.45, z + 1.36), (0.24, 0.06, 0.05), M['wood'], 0.02); cyl('model_ship_mast', (xa1 - 0.36, 1.45, z + 1.45), 0.005, 0.16, M['wood'], 6)
+# study
+z = F3
+for k in range(3):
+    books_stack(0.4 + 0.18 * k, YB - 0.1, z + 1.27, 3)
+bx('papers', (0.0, 1.12, z + 0.635), (0.2, 0.14, 0.006), M['paper'], 0); candlestick(0.35, 1.2, z + 0.63)
+back_picture(-0.35, z + 1.3, 0.3, 0.36)
+# laila
+z = F3
+doll(xk0 + 0.3, YB - 0.4, z + 0.45, 'toyY'); doll(xk0 + 0.5, YB - 0.42, z + 0.45, 'toyB'); toy_blocks(xk0 + 0.8, 0.7, z)
+doll(xk1 - 0.78, 1.3, z + 0.4, 'toyR'); back_picture(xk0 + 1.0, z + 1.25, 0.24, 0.24)
+# attic: ceiling lining under the centre gable roof (the slate underside showed through), boxes, cushions
+for sgn in (-1, 1):
+    xe = ACX0 if sgn < 0 else ACX1
+    slab('attic_c_ceiling', [(gxC, 0.0, apC - 0.06), (xe, 0.0, roofC(xe) - 0.06), (xe, YB, roofC(xe) - 0.06), (gxC, YB, apC - 0.06)][:: (1 if sgn > 0 else -1)],
+         M['wp_cream'], 0.01, 0.9)
+bx('attic_box', (ACX1 - 0.3, 1.5, F4 + 0.12), (0.3, 0.25, 0.24), M['bread'], 0.01); bx('attic_box2', (ACX1 - 0.32, 1.5, F4 + 0.32), (0.22, 0.2, 0.16), M['bread'], 0.01)
+for k in range(3):
+    cushion('loft_cushion', (LX0 + 0.85 + 0.12 * k, 1.35, F4 + 0.06), (0.16, 0.16, 0.08), ['rose', 'quilt', 'sofa'][k], 0.03)
 
 # ------------------------------------------------------------------ facade frame
 FR = -0.06   # front plane of the trim
@@ -1121,7 +1260,7 @@ bx('ridgeCap', ((HIP_L + HIP_R) / 2, D * 0.45, RID + 0.01), (HIP_R - HIP_L, 0.12
 bx('eaveFascia', (0, -OV + 0.02, EAVE_Z - 0.05), (xR - xL, 0.06, 0.14), M['trim'], 0.01)
 
 # ------------------------------------------------------------------ plinth, steps, garden, tabletop
-FLOWERS = [K.material('flower_pink', base='#e86aa0', rough=0.6), K.material('flower_white', base='#f6eef0', rough=0.6),
+FLOWERS_ = [K.material('flower_pink', base='#e86aa0', rough=0.6), K.material('flower_white', base='#f6eef0', rough=0.6),
            K.material('flower_magenta', base='#c03070', rough=0.6), K.material('flower_lilac', base='#c890e0', rough=0.6)]
 PL_L, PL_R = X(1008), X(1492)   # round 7: measured plinth / flower-bed extents
 box('plinth', PL_L, PL_R, -0.35, D + 0.1, -0.02, F1 - 0.08, M['stone'], 0.01, 0.5)
