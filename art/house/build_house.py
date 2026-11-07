@@ -406,7 +406,67 @@ def place(fn, x, y, z, rot=0.0, room=None, item=None, **kw):
             o.data.transform(Mt)
         else:
             o.location = Mt @ o.location
-    return tag(new, ll_room=room or '', ll_item=item or fn.__name__)
+    it = item or fn.__name__
+    for k, (kind, stand, face, contact, extra) in enumerate(INTERACT.get(fn.__name__, lambda kw: [])(kw)):
+        add_ip(room or '', it, k, kind, Mt @ V(stand), Mt.to_3x3() @ V((face[0], face[1], 0.0)), Mt @ V(contact), extra)
+    return tag(new, ll_room=room or '', ll_item=it)
+
+
+# ---- round 20 (H5): interaction points. Item-local frame: front of the item faces -Y. Each entry:
+# (kind, stand point (where the character stands, floor level), facing (unit xy, character forward when interacting),
+#  contact point (hand / seat / pillow), extra props). Exported as IP_ empties + assets/house/house_data.json.
+INTERACTIONS = []
+
+
+def add_ip(room, item, k, kind, stand, face, contact, extra=None):
+    face = V((face.x, face.y, 0.0)).normalized()
+    iid = f'{room}.{item}.{k}'
+    while any(i['id'] == iid for i in INTERACTIONS):
+        iid += "'"
+    rec = dict(id=iid, room=room, item=item, kind=kind, stand=[round(v, 4) for v in stand], face=[round(face.x, 4), round(face.y, 4)],
+               contact=[round(v, 4) for v in contact], **(extra or {}))
+    INTERACTIONS.append(rec)
+    e = bpy.data.objects.new('IP_' + iid.replace("'", '_'), None); e.location = stand; e.empty_display_size = 0.08
+    bpy.context.scene.collection.objects.link(e)
+    for kk, vv in rec.items():
+        if isinstance(vv, (str, int, float)):
+            e['ip_' + kk] = vv
+    e['ll_type'] = 'interaction'
+
+
+FRONT = (0.0, 1.0)     # character faces the item (item front is -Y, so the character looks toward +Y)
+AWAY = (0.0, -1.0)     # character faces away from the item (sitting down / lying down)
+INTERACT = {
+    'chair': lambda kw: [('sit', (0, -0.42, 0), AWAY, (0, -0.01, 0.48), {'seat_h': 0.48})],
+    'armchair': lambda kw: [('sit', (0, -0.55, 0), AWAY, (0, -0.02, 0.43), {'seat_h': 0.43})],
+    'sofa': lambda kw: [('sit', (sx, -0.55, 0), AWAY, (sx, -0.04, 0.44), {'seat_h': 0.44}) for sx in (-0.25, 0.25)],
+    'bed': lambda kw: [('sleep', (kw.get('w', 1.0) / 2 + 0.28, -0.05, 0), (-1.0, 0.0), (0, 0.05, 0.45), {'lie_h': 0.45}),
+                       ('sleep', (-kw.get('w', 1.0) / 2 - 0.28, -0.05, 0), (1.0, 0.0), (0, 0.05, 0.45), {'lie_h': 0.45})][: 2 if kw.get('w', 1.0) > 0.9 else 1],
+    'small_bed': lambda kw: [('sleep', (kw.get('w', 0.62) / 2 + 0.28, -0.05, 0), (-1.0, 0.0), (0, 0.05, 0.45), {'lie_h': 0.45})],
+    'lamp': lambda kw: [('switch', (0, -0.38, 0), FRONT, (0, 0, kw.get('h', 0.55) * 0.6), {'controls': 'lamp'})],
+    'radio': lambda kw: [('use', (0, -0.42, 0), FRONT, (0, -0.1, 0.25), {'appliance': 'radio'})],
+    'fireplace': lambda kw: [('use', (0, -0.62, 0), FRONT, (0, -0.17, 0.3), {'appliance': 'fireplace'})],
+    'counter_sink': lambda kw: [('use', (-kw.get('w', 1.0) * 0.25, -0.55, 0), FRONT, (-kw.get('w', 1.0) * 0.25, 0, 0.9), {'appliance': 'tap'}),
+                                ('use', (kw.get('w', 1.0) * 0.2, -0.55, 0), FRONT, (kw.get('w', 1.0) * 0.2, 0, 0.9), {'appliance': 'counter'})],
+    'range_stove': lambda kw: [('use', (0, -0.55, 0), FRONT, (0, -0.05, 0.93), {'appliance': 'stove'})],
+    'icebox': lambda kw: [('open', (0, -0.58, 0), FRONT, (0.18, -0.25, 0.95), {'appliance': 'icebox'})],
+    'wardrobe': lambda kw: [('open', (0, -0.6, 0), FRONT, (0, -0.22, 0.9), {})],
+    'vanity': lambda kw: [('use', (0, -0.45, 0), FRONT, (0, 0, 0.7), {})],
+    'desk': lambda kw: [('use', (0, -0.5, 0), FRONT, (0, 0, 0.65), {})],
+    'bookshelf': lambda kw: [('use', (0, -0.5, 0), FRONT, (0, -0.1, 0.8), {'action': 'take_book'})],
+    'glass_cabinet': lambda kw: [('open', (0, -0.5, 0), FRONT, (0, -0.16, 0.9), {})],
+    'dresser': lambda kw: [('open', (0, -0.5, 0), FRONT, (0, -0.18, 0.6), {})],
+    'tub': lambda kw: [('bathe', (0, -0.5, 0), FRONT, (0, 0, 0.3), {'appliance': 'tap'})],
+    'toilet': lambda kw: [('sit', (0, -0.45, 0), AWAY, (0, -0.05, 0.42), {'seat_h': 0.42, 'appliance': 'toilet'})],
+    'pedestal_sink': lambda kw: [('use', (0, -0.45, 0), FRONT, (0, 0, 0.82), {'appliance': 'tap'})],
+    'towel_rail': lambda kw: [('use', (-0.4, 0, 0), (1.0, 0.0), (0, 0, 0.8), {})],
+    'toy_chest': lambda kw: [('open', (0, -0.45, 0), FRONT, (0, 0, 0.4), {'action': 'play'})],
+    'toy_dollhouse': lambda kw: [('use', (0, -0.45, 0), FRONT, (0, 0, 0.3), {'action': 'play'})],
+    'globe': lambda kw: [('use', (0, -0.4, 0), FRONT, (0, 0, 0.8), {})],
+    'window_seat': lambda kw: [('sit', (0, -0.5, 0), AWAY, (0, 0, 0.45), {'seat_h': 0.45})],
+    'trunk': lambda kw: [('open', (0, -0.45, 0), FRONT, (0, 0, 0.35), {})],
+    'table': lambda kw: ([('use', (0, -kw.get('l', 0.6) / 2 - 0.35, 0), FRONT, (0, 0, kw.get('h', 0.62)), {'action': 'put'})] if kw.get('h', 0.62) > 0.5 else []),
+}
 
 
 def marker(name, p, **props):
@@ -1315,6 +1375,43 @@ for o in bpy.context.scene.objects:
         o.data.name = o.name
 # ---- round 19 budget: merge every static mesh into one object (one glTF primitive per material => ~1 draw call per
 # material). Doors stay separate nodes so they can swing; gameplay data lives on empties (Room_/Door_/Stair_/LM_ ...).
+# ---- round 20 (H5): light switches (one per room, beside its door), door + stair interactions, JSON export
+SWITCHES = []
+for lvl in range(3):
+    z0 = FLOORS[lvl]
+    for bay in range(3):
+        rid = RID_OF[(lvl, bay)][0]
+        px, sg = (POSTS[1], -1) if bay == 0 else (POSTS[1], 1) if bay == 1 else (POSTS[2], 1)
+        xf = px + sg * 0.035
+        sw = bx(f'switch_{rid}', (xf + sg * 0.008, DY1 + 0.16, z0 + 0.85), (0.016, 0.07, 0.11), M['brass'], 0.004)
+        add_ip(rid, 'light_switch', 0, 'switch', V((xf + sg * 0.32, DY1 + 0.16, z0)), V((-sg, 0, 0)), V((xf, DY1 + 0.16, z0 + 0.85)), {'controls': f'Light_{rid}'})
+        SWITCHES.append(dict(room=rid, light=f'Light_{rid}'))
+for d in DOORS:
+    a, b = d['rooms']
+    for side, rr in ((-1, a), (1, b)):
+        add_ip(rr, f"door_{d['id']}", 0, 'open', V((d['x'] + side * 0.35, d['y'], d['z'])), V((-side, 0, 0)), V((d['x'], d['y'], d['z'] + 0.6)), {'door': f"Door_{d['id']}"})
+for st in STAIRS:
+    add_ip(st.get('room', ''), f"stair_{st['id']}", 0, 'climb', V(st['bottom']), V((1, 0, 0)) if st['axis'] == 'x' else V((0, -1, 0)), V(st['top']),
+           {'stair': st['id'], 'to_z': st['top'][2]})
+import json as _json
+HOUSE_DATA = dict(
+    _doc='Little Lives house gameplay data (round 20+). Coordinates are Blender (Z up, -Y = open front, units = Naomi 1.0 tall). '
+         'three.js / glTF = (x, z, -y). Generated by art/house/build_house.py with assets/house/house.glb.',
+    rooms=[dict(id=r[0], title=r[3], level=r[1], bay=r[2]) for r in ROOMS] + [dict(id='attic_c', title='Attic landing', level=3, bay=1),
+          dict(id='loft', title='Loft playroom', level=3, bay=2), dict(id='attic_l', title='Storage + window seat (sealed)', level=3, bay=0, walkable=False)],
+    floors=[dict(level=i, z=round(z, 4)) for i, z in enumerate(FLOORS)],
+    doors=[dict(id=f"Door_{d['id']}", rooms=list(d['rooms']), hinge=[round(d['x'], 4), round(DY1, 4), round(d['z'], 4)], width=round(DY1 - DY0, 3), height=DH)
+           for d in DOORS],
+    stairs=[dict(id=st['id'], bottom=[round(v, 4) for v in st['bottom']], top=[round(v, 4) for v in st['top']], axis=st['axis'], steps=st['n']) for st in STAIRS],
+    lights=sorted({o.name for o in bpy.context.scene.objects if o.name.startswith('Light_')}),
+    switches=SWITCHES,
+    interactions=INTERACTIONS,
+)
+_counts = {}
+for i in INTERACTIONS:
+    _counts[i['kind']] = _counts.get(i['kind'], 0) + 1
+print('INTERACTIONS', len(INTERACTIONS), _counts)
+
 # ---- round 19b: fold plain-colour materials into a few vertex-coloured class materials (roughness / metal / gloss),
 # so the merged mesh needs ~1 draw call per class instead of 1 per colour. Textured, emissive and glass materials stay.
 def _principled(m):
@@ -1385,5 +1482,6 @@ bpy.ops.object.join()
 house_ob = bpy.context.view_layer.objects.active
 house_ob.name = 'House_static'; house_ob.data.name = 'House_static'
 K.export_glb(OUT)
+open(OUT.replace('.glb', '_data.json'), 'w').write(_json.dumps(HOUSE_DATA, indent=1))
 tris = sum(len(p.vertices) - 2 for o in bpy.context.scene.objects if o.data for p in o.data.polygons)
 print('EXPORTED', OUT, 'objects', len(bpy.context.scene.objects), 'tris', tris)

@@ -101,6 +101,25 @@ new GLTFLoader().load(q.get('model') || '../assets/house/house.glb', async (g) =
     d2(); requestAnimationFrame(() => { d2(); window.READY = true; });
     return;
   }
+  // ?ips=1 : interaction-point overlay (stand point sphere + facing arrow, colour by kind) from IP_ empties
+  if (q.get('ips') === '1') {
+    const KC = { sit: 0x40a0ff, sleep: 0x9060ff, open: 0x40e070, use: 0xffd040, switch: 0xff5050, bathe: 0x40e0e0, climb: 0xffffff };
+    root.traverse((o) => {
+      if (!o.name.startsWith('IP_')) return;
+      const u = o.userData || {}; const c = KC[u.ip_kind] ?? 0xff00ff;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: c, depthTest: false }));
+      m.renderOrder = 10; o.add(m);
+      const face = u.ip_face_x !== undefined ? null : null;
+    });
+    // facing arrows from the JSON (userData can't hold arrays)
+    const data = await (await fetch('../assets/house/house_data.json')).json();
+    for (const ip of data.interactions) {
+      const from = new THREE.Vector3(ip.stand[0], ip.stand[2] + 0.06, -ip.stand[1]);
+      const dir = new THREE.Vector3(ip.face[0], 0, -ip.face[1]);
+      const ar = new THREE.ArrowHelper(dir, from, 0.28, KC[ip.kind] ?? 0xff00ff, 0.1, 0.07); ar.traverse((x) => { if (x.material) { x.material.depthTest = false; x.renderOrder = 11; } });
+      scene.add(ar);
+    }
+  }
   // close-ups: ?floor=<1..4> frames a whole level, ?room=<id> one room (markers Floor_<n> / Room_<id> from the build)
   const closeName = q.get('floor') ? 'Floor_' + q.get('floor') : q.get('room') ? 'Room_' + q.get('room') : null;
   if (closeName) {
