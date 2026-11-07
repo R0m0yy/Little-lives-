@@ -223,13 +223,21 @@ def spandrel_keep(Wd, Hh):
     return keep
 
 
+def lathe_at(name, x, y, rows, **kw):
+    """K.lathe builds around the origin; move the result to (x, y). (Round 16b: rounds 12-16 omitted this, so every
+    turned part placed by x,y — finials, balusters, legs, bed posts, lamp bases, chandelier bodies — sat at x=y=0.)"""
+    ob = K.lathe(name, rows, **kw)
+    ob.data.transform(Matrix.Translation((x, y, 0.0)))
+    return ob
+
+
 def turned_finial(name, x, y, z0, z1, r=0.045):
     """Lathe-turned finial from z0 to z1 (spire with bulbs and collars), round 12."""
     h = z1 - z0
     prof = [(0.0, 1.0), (0.18, 0.985), (0.30, 0.94), (0.22, 0.86), (0.42, 0.80), (0.62, 0.74), (0.66, 0.68), (0.40, 0.63), (0.28, 0.58),
             (0.55, 0.52), (0.85, 0.44), (0.95, 0.36), (0.80, 0.28), (0.45, 0.22), (0.50, 0.15), (0.75, 0.10), (0.80, 0.0)]
     rows = [(r * a, r * a, z0 + h * t) for a, t in prof]
-    return K.subsurf(K.lathe(name, rows, nu=16, mat=M['trim']), 1)
+    return K.subsurf(lathe_at(name, x, y, rows, nu=16, mat=M['trim']), 1)
 
 
 def cresting_keep(P=0.16, Hc=0.17):
@@ -268,7 +276,7 @@ def glazed(name, x0, x1, y, z0, z1, cols=3, rows=2, curtains=True):
 
 def turned_baluster(name, x, y, z0, h, r=0.022):
     prof = [(0.70, 1.0), (0.75, 0.96), (0.45, 0.92), (0.40, 0.80), (0.75, 0.62), (0.95, 0.45), (0.70, 0.30), (0.45, 0.22), (0.80, 0.10), (0.90, 0.0)]
-    return K.lathe(name, [(r * a, r * a, z0 + h * t) for a, t in prof], nu=10, mat=M['trim'])
+    return lathe_at(name, x, y, [(r * a, r * a, z0 + h * t) for a, t in prof], nu=10, mat=M['trim'])
 
 
 # ------------------------------------------------------------------ furniture kit
@@ -735,6 +743,169 @@ def small_bed(x, y, z, w=0.62, l=1.1, quilt='quilt'):
     bed(x, y, z, w, l, quilt)
 
 
+# ---------------- furniture kit v2 (round 16, H3): real shapes — turned legs, tufted upholstery, carved headboards,
+# lathe clawfoot tub, glass-front cabinets. Same signatures as the blockout kit (front faces -Y at rot 0).
+M.update(mirror=K.material('mirror', base='#c9d2dc', metal=0.35, rough=0.06), velvet=K.material('fabric_velvet', base='#8a3440', rough=0.9, sheen=0.6),
+         cabGlass=K.material('cabinet_glass', base='#d8e4ec', rough=0.02, transmission=0.9, ior=1.45))
+
+
+def turned_leg(x, y, z0, h, r=0.026, mat='wood'):
+    prof = [(0.75, 1.0), (0.95, 0.96), (0.95, 0.86), (0.60, 0.82), (0.55, 0.62), (0.85, 0.50), (0.60, 0.40), (0.45, 0.20), (0.62, 0.08), (0.50, 0.0)]
+    return lathe_at('leg', x, y, [(r * a, r * a, z0 + h * t) for a, t in prof], nu=10, mat=M[mat])
+
+
+def cushion(name, c, s, mat, bevel=0.04):
+    ob = bx(name, c, s, M[mat], bevel)
+    return K.subsurf(ob, 1)
+
+
+def tufts(x0, x1, y, z0, z1, nx, nz, mat):
+    for i in range(nx):
+        for j in range(nz):
+            K.ellipsoid('tuft', V((x0 + (x1 - x0) * (i + 0.5) / nx, y, z0 + (z1 - z0) * (j + 0.5) / nz)), (0.012, 0.008, 0.012), mat=M[mat], nu=8, nv=5)
+
+
+def table(x, y, z, w=1.0, l=0.6, h=0.62, cloth=False):
+    if cloth:
+        cushion('tablecloth', (x, y, z + h - 0.10), (w + 0.06, l + 0.06, 0.22), 'linen', 0.03)
+        bx('tabletop', (x, y, z + h + 0.005), (w + 0.02, l + 0.02, 0.02), M['linen'], 0.008)
+    else:
+        bx('tabletop', (x, y, z + h - 0.02), (w, l, 0.04), M['woodLight'], 0.012)
+        bx('apron', (x, y, z + h - 0.08), (w - 0.08, l - 0.08, 0.08), M['wood'], 0.006)
+    for dx in (-w / 2 + 0.06, w / 2 - 0.06):
+        for dy in (-l / 2 + 0.06, l / 2 - 0.06):
+            turned_leg(x + dx, y + dy, z, h - 0.04, 0.024 if h > 0.45 else 0.02)
+
+
+def chair(x, y, z, rot=0.0, mat='rose'):
+    cushion('seat', (x, y - 0.01, z + 0.44), (0.40, 0.38, 0.07), mat, 0.025)
+    for dx in (-0.16, 0.16):
+        turned_leg(x + dx, y - 0.15, z, 0.42, 0.018)
+        cyl('backleg', (x + dx, y + 0.17, z + 0.48), 0.016, 0.96, M['wood'], 8)
+    pts = [V((x - 0.17 + 0.34 * t, y + 0.18 + 0.02 * math.sin(math.pi * t), z + 0.93 + 0.05 * math.sin(math.pi * t))) for t in [i / 12 for i in range(13)]]
+    K.sweep('toprail', pts, lambda t: (0.022, 0.016), nprof=8, mat=M['wood'])
+    cushion('backpad', (x, y + 0.175, z + 0.72), (0.28, 0.03, 0.32), mat, 0.012)
+
+
+def armchair(x, y, z, mat='sofa'):
+    cushion('ac_seat', (x, y - 0.02, z + 0.33), (0.62, 0.56, 0.20), mat, 0.06)
+    cushion('ac_back', (x, y + 0.24, z + 0.66), (0.62, 0.14, 0.52), mat, 0.07)
+    for sx in (-0.29, 0.29):
+        cushion('ac_arm', (x + sx, y, z + 0.49), (0.10, 0.54, 0.16), mat, 0.04)
+        K.sweep('ac_roll', [V((x + sx, y - 0.27, z + 0.58)), V((x + sx, y + 0.25, z + 0.58))], lambda t: (0.055, 0.05), nprof=12, mat=M[mat])
+        for sy in (-0.22, 0.2):
+            turned_leg(x + sx * 0.92, y + sy, z, 0.24, 0.022)
+    tufts(x - 0.22, x + 0.22, y + 0.165, z + 0.52, z + 0.86, 3, 2, 'brass')
+    bx('ac_skirt', (x, y - 0.02, z + 0.22), (0.64, 0.58, 0.04), M['wood'], 0.01)
+
+
+def sofa(x, y, z, mat='sofa'):
+    cushion('sofa_base', (x, y - 0.02, z + 0.27), (1.04, 0.50, 0.16), mat, 0.05)
+    for sx in (-0.25, 0.25):
+        cushion('sofa_seat', (x + sx, y - 0.04, z + 0.39), (0.48, 0.44, 0.09), mat, 0.035)
+    pts = [V((x - 0.52 + 1.04 * t, y + 0.21, z + 0.74 + 0.12 * math.sin(math.pi * t))) for t in [i / 16 for i in range(17)]]
+    K.sweep('sofa_crest', pts, lambda t: (0.04, 0.05), nprof=10, mat=M['wood'])
+    cushion('sofa_back', (x, y + 0.2, z + 0.58), (1.0, 0.1, 0.38), mat, 0.05)
+    tufts(x - 0.4, x + 0.4, y + 0.145, z + 0.48, z + 0.72, 5, 2, 'brass')
+    for sx in (-0.5, 0.5):
+        K.sweep('sofa_roll', [V((x + sx, y - 0.24, z + 0.47)), V((x + sx, y + 0.2, z + 0.47))], lambda t: (0.06, 0.07), nprof=12, mat=M[mat])
+        for sy in (-0.2, 0.18):
+            turned_leg(x + sx * 0.92, y + sy, z, 0.19, 0.022)
+
+
+def bed(x, y, z, w=1.0, l=1.25, quilt='quilt'):
+    bx('bedframe', (x, y, z + 0.20), (w, l, 0.16), M['wood'], 0.012)
+    cushion('mattress', (x, y - 0.03, z + 0.35), (w * 0.94, l * 0.96, 0.14), 'linen', 0.03)
+    cushion('quilt', (x, y - 0.17, z + 0.43), (w * 1.0, l * 0.68, 0.05), quilt, 0.02)
+    bx('quiltFold', (x, y + 0.17, z + 0.45), (w * 0.96, 0.08, 0.05), M['linen'], 0.02)
+    hb_y = y + l / 2 - 0.02
+    top = [(x - w / 2 + w * t, hb_y, z + 0.80 + 0.22 * math.sin(math.pi * t) ** 0.8 + 0.03 * math.cos(6 * math.pi * t)) for t in [i / 20 for i in range(21)]]
+    poly('headboard', [(x - w / 2, hb_y, z + 0.12)] + top + [(x + w / 2, hb_y, z + 0.12)], M['wood'], 0.05)
+    poly('headpanel', [(x - w * 0.36, hb_y - 0.012, z + 0.50), (x + w * 0.36, hb_y - 0.012, z + 0.50), (x + w * 0.36, hb_y - 0.012, z + 0.80), (x, hb_y - 0.012, z + 0.90),
+                       (x - w * 0.36, hb_y - 0.012, z + 0.80)], M['woodLight'], 0.012)
+    fb_y = y - l / 2 + 0.02
+    poly('footboard', [(x - w / 2, fb_y, z + 0.12), (x + w / 2, fb_y, z + 0.12), (x + w / 2, fb_y, z + 0.50), (x, fb_y, z + 0.58), (x - w / 2, fb_y, z + 0.50)], M['wood'], 0.045)
+    for px_, py_, ph in ((x - w / 2, hb_y, 1.02), (x + w / 2, hb_y, 1.02), (x - w / 2, fb_y, 0.62), (x + w / 2, fb_y, 0.62)):
+        turned_finial('bedpost', px_, py_, z, z + ph, r=0.04)
+    for sx in (-0.22, 0.22):
+        K.subsurf(K.ellipsoid('pillow', V((x + sx * w, y + l / 2 - 0.2, z + 0.48)), (w * 0.21, 0.1, 0.055), mat=M['linen'], nu=16, nv=10), 1)
+
+
+def cabinet(x, y, z, w, h, d=0.4, mat='wood'):
+    bx('cab', (x, y, z + h / 2 + 0.03), (w, d, h - 0.06), M[mat], 0.012)
+    bx('cab_plinth', (x, y - 0.005, z + 0.03), (w + 0.03, d + 0.02, 0.06), M['wood'], 0.008)
+    bx('cab_crown', (x, y - 0.01, z + h + 0.015), (w + 0.05, d + 0.04, 0.04), M['wood'], 0.01)
+    n = max(1, round(w / 0.4))
+    for i in range(n):
+        cxx = x - w / 2 + (i + 0.5) * w / n
+        bx('door', (cxx, y - d / 2 - 0.006, z + h / 2 + 0.02), (w / n - 0.05, 0.012, h - 0.16), M['woodLight'], 0.004)
+        bx('door_panel', (cxx, y - d / 2 - 0.013, z + h / 2 + 0.02), (w / n - 0.13, 0.006, h - 0.30), M[mat], 0.003)
+        K.ellipsoid('knob', V((cxx + (w / n) * 0.32 * (1 if i % 2 == 0 else -1), y - d / 2 - 0.02, z + h * 0.55)), (0.012, 0.01, 0.012), mat=M['brass'], nu=8, nv=5)
+
+
+def glass_cabinet(x, y, z, w=0.6, h=1.5, d=0.32):
+    bx('gc_body', (x, y + 0.01, z + h / 2), (w, d - 0.02, h), M['wood'], 0.012)
+    bx('gc_crown', (x, y - 0.01, z + h + 0.02), (w + 0.06, d + 0.03, 0.05), M['wood'], 0.012)
+    bx('gc_glass', (x, y - d / 2 + 0.005, z + h * 0.62), (w - 0.08, 0.01, h * 0.62), M['cabGlass'], 0)
+    for k in range(3):
+        zz = z + h * 0.35 + k * h * 0.2
+        bx('gc_shelf', (x, y, zz), (w - 0.06, d - 0.06, 0.015), M['woodLight'], 0)
+        for j in range(3):
+            cyl('gc_plate', (x - w * 0.28 + j * w * 0.28, y + 0.05, zz + 0.08), 0.06, 0.012, M['pot'], 14)
+    bx('gc_mullion', (x, y - d / 2 - 0.002, z + h * 0.62), (0.02, 0.012, h * 0.62), M['wood'], 0)
+    bx('gc_base', (x, y - 0.005, z + h * 0.15), (w + 0.02, d + 0.01, h * 0.3), M['woodLight'], 0.01)
+
+
+def tub(x, y, z):
+    prof = [(0.50, 0.25, 0.50), (0.51, 0.255, 0.47), (0.49, 0.24, 0.38), (0.46, 0.22, 0.26), (0.41, 0.19, 0.17), (0.30, 0.13, 0.12), (0.0, 0.0, 0.11)]
+    ob = K.lathe('tub', [(a, b, c) for a, b, c in prof], nu=36, mat=M['enamel'])
+    ob.data.transform(Matrix.Translation((x, y, z)))
+    K.subsurf(ob, 1)
+    rim = [V((x + 0.505 * math.sin(t), y - 0.255 * math.cos(t), z + 0.50)) for t in [k / 48 * K.TAU for k in range(49)]]
+    K.sweep('tub_rim', rim, lambda t: (0.018, 0.018), nprof=8, mat=M['enamel'], cap=False)
+    for sx in (-0.36, 0.36):
+        for sy in (-0.13, 0.13):
+            turned_leg(x + sx, y + sy, z, 0.16, 0.026, 'brass')
+    cyl('tub_tap', (x - 0.48, y, z + 0.62), 0.014, 0.24, M['brass'], 8)
+    K.sweep('tub_spout', [V((x - 0.48, y, z + 0.73)), V((x - 0.42, y, z + 0.76)), V((x - 0.38, y, z + 0.70))], lambda t: (0.012, 0.012), nprof=8, mat=M['brass'])
+
+
+def lamp(x, y, z, h=0.55, name='lamp'):
+    prof = [(0.6, 1.0), (0.5, 0.9), (0.9, 0.7), (1.1, 0.45), (0.7, 0.3), (0.5, 0.15), (1.4, 0.05), (1.5, 0.0)]
+    lathe_at('lampbase', x, y, [(0.035 * a, 0.035 * a, z + h * 0.62 * t) for a, t in prof], nu=12, mat=M['brass'])
+    shade = [(0.075, 0.075, z + h * 0.98), (0.10, 0.10, z + h * 0.86), (0.14, 0.14, z + h * 0.66), (0.148, 0.148, z + h * 0.62)]
+    lathe_at(name + '_shade', x, y, shade, nu=20, mat=M['shade'])
+    K.ellipsoid('lamp_bulb', V((x, y, z + h * 0.76)), (0.03, 0.03, 0.04), mat=M['bulb'], nu=8, nv=6)
+
+
+def chandelier(x, y, zc):
+    cyl('chain', (x, y, zc - 0.12), 0.008, 0.24, M['brass'], 6)
+    lathe_at('ch_body', x, y, [(0.02, 0.02, zc - 0.22), (0.05, 0.05, zc - 0.27), (0.03, 0.03, zc - 0.33), (0.06, 0.06, zc - 0.38), (0.0, 0.0, zc - 0.42)], nu=12, mat=M['brass'])
+    for k in range(6):
+        a = k / 6 * K.TAU
+        arm = [V((x + math.cos(a) * r, y + math.sin(a) * r, zc - 0.34 + 0.06 * math.sin(math.pi * r / 0.19))) for r in [i / 10 * 0.19 for i in range(11)]]
+        K.sweep('ch_arm', arm, lambda t: (0.008, 0.008), nprof=6, mat=M['brass'])
+        cx_, cy_ = x + math.cos(a) * 0.19, y + math.sin(a) * 0.19
+        cyl('ch_cup', (cx_, cy_, zc - 0.33), 0.022, 0.02, M['brass'], 10)
+        K.ellipsoid('ch_bulb', V((cx_, cy_, zc - 0.29)), (0.016, 0.016, 0.026), mat=M['bulb'], nu=8, nv=6)
+
+
+def wardrobe(x, y, z):
+    cabinet(x, y, z, 0.76, 1.6, 0.42)
+    poly('wardrobe_pediment', [(x - 0.4, y - 0.215, z + 1.64), (x + 0.4, y - 0.215, z + 1.64), (x + 0.28, y - 0.215, z + 1.74), (x, y - 0.215, z + 1.80),
+                               (x - 0.28, y - 0.215, z + 1.74)], M['wood'], 0.04)
+
+
+def dresser(x, y, z):
+    cabinet(x, y, z, 0.72, 0.8, 0.36)
+    bx('dresser_hutch', (x, y + 0.09, z + 1.18), (0.68, 0.16, 0.72), M['wood'], 0.01)
+    bx('dresser_hutch_crown', (x, y + 0.08, z + 1.56), (0.74, 0.2, 0.04), M['wood'], 0.01)
+    for r_ in range(2):
+        bx('dresser_rail', (x, y + 0.02, z + 0.98 + r_ * 0.3), (0.64, 0.04, 0.015), M['woodLight'], 0)
+        for k in range(4):
+            cyl('plate', (x - 0.24 + 0.16 * k, y + 0.06, z + 1.08 + r_ * 0.3), 0.065, 0.01, M['pot'], 16).rotation_euler = (math.radians(80), 0, 0)
+
+
 # ---------------- dressing per room (walk paths: front band y<0.62 and door openings kept clear)
 z = F1
 xa0, xa1 = XI[0]; cxl = (xa0 + xa1) / 2
@@ -746,7 +917,7 @@ xc0, xc1 = XI[1]
 place(table, 0.02, 1.15, z, room='dining', w=0.8, l=0.55, h=0.62, cloth=True)
 for dx in (-0.2, 0.22):
     place(chair, dx, 0.8, z, math.pi, room='dining'); place(chair, dx, 1.52, z, 0.0, room='dining')
-place(dresser, xc1 - 0.19, 1.35, z, -math.pi / 2, room='dining'); chandelier(0.02, 1.15, CEIL[0]); rug(0.02, 1.15, z, 1.3, 1.1)
+place(dresser, xc1 - 0.19, 1.35, z, -math.pi / 2, room='dining'); place(glass_cabinet, xc0 + 0.18, 1.38, z, math.pi / 2, room='dining');   # left partition, clear of stair S1 and the door chandelier(0.02, 1.15, CEIL[0]); rug(0.02, 1.15, z, 1.3, 1.1)
 xk0, xk1 = XI[2]
 place(counter_sink, xk0 + 0.62, YB - 0.27, z, room='kitchen', w=1.05); place(range_stove, xk1 - 0.45, YB - 0.27, z, room='kitchen')
 place(icebox, xk1 - 0.25, 1.2, z, -math.pi / 2, room='kitchen'); place(table, xk0 + 0.75, 1.15, z, room='kitchen', w=0.6, l=0.45, h=0.62)
@@ -766,7 +937,7 @@ z = F3
 place(small_bed, xa0 + 0.4, YB - 0.6, z, room='elias', w=0.66, l=1.2); place(desk, cxl + 0.45, YB - 0.25, z, room='elias')
 place(chair, cxl + 0.45, YB - 0.62, z, math.pi, room='elias'); place(bookshelf, xa1 - 0.36, 1.45, z, -math.pi / 2, room='elias', w=0.6, h=1.3)
 place(lamp, cxl + 0.7, YB - 0.22, z + 0.62, room='elias', h=0.35); window(cxl + 0.45, z + 0.95, 0.5, 0.5, YB - 0.01); rug(cxl, 1.1, z, 1.2, 0.9)
-place(desk, 0.1, 1.15, z, room='study'); place(chair, 0.1, 1.5, z, 0.0, room='study'); place(globe, 0.72, 1.6, z, room='study')
+place(desk, 0.1, 1.15, z, room='study'); place(glass_cabinet, XI[1][1] - 0.2, 1.25, z, -math.pi / 2, room='study', w=0.55, h=1.3); place(chair, 0.1, 1.5, z, 0.0, room='study'); place(globe, 0.72, 1.6, z, room='study')
 bx('study_shelf', (0.55, YB - 0.1, z + 1.25), (0.8, 0.18, 0.03), M['wood'], 0.005); rug(0.1, 1.0, z, 1.2, 0.9); chandelier(0.02, 1.0, CEIL[2])
 place(small_bed, xk0 + 0.4, YB - 0.56, z, room='laila', w=0.6, l=1.08, quilt='rose'); place(toy_chest, xk0 + 1.05, YB - 0.2, z, room='laila')
 place(toy_dollhouse, xk1 - 0.78, 1.3, z, room='laila'); rug(xk0 + 0.6, 0.95, z, 0.9, 0.7); window(xk0 + 0.4, z + 0.95, 0.45, 0.5, YB - 0.01)
