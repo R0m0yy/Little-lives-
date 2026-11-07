@@ -64,7 +64,7 @@ new GLTFLoader().load(q.get('model') || '../assets/house/house.glb', async (g) =
     }
     if (o.name.startsWith('Light_')) lights.push(o);
   });
-  const P = +(q.get('room') || 3.0);
+  const P = +(q.get('lux') || 3.0);   // room light power ('room' is the close-up selector)
   for (const e of lights) {
     const fire = e.name === 'Light_fire';
     const L = new THREE.PointLight(fire ? 0xff7a2a : 0xff9c42, fire ? P * 0.7 : P, fire ? 2.5 : 4.0, 1.5);
@@ -84,6 +84,24 @@ new GLTFLoader().load(q.get('model') || '../assets/house/house.glb', async (g) =
     window.DRAW = d2;
     d2(); requestAnimationFrame(() => { d2(); window.READY = true; });
     return;
+  }
+  // close-ups: ?floor=<1..4> frames a whole level, ?room=<id> one room (markers Floor_<n> / Room_<id> from the build)
+  const closeName = q.get('floor') ? 'Floor_' + q.get('floor') : q.get('room') ? 'Room_' + q.get('room') : null;
+  if (closeName) {
+    const m = root.getObjectByName(closeName);
+    if (m) {
+      const u = m.userData || {}; const c = m.getWorldPosition(new THREE.Vector3());
+      camera.fov = q.get('room') ? 34 : 28; camera.updateProjectionMatrix();
+      const vf = THREE.MathUtils.degToRad(camera.fov), hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+      const w = (u.w || 3) * 1.08, h = (u.h || 2) * 1.15;
+      const dist = Math.max(h / 2 / Math.tan(vf / 2), w / 2 / Math.tan(hf / 2)) + (q.get('room') ? 0.4 : 0);
+      const el = THREE.MathUtils.degToRad(q.get('room') ? 10 : 7);
+      const tgt = c.clone();   // marker sits at mid-depth of the room/level
+      camera.position.set(tgt.x, tgt.y + Math.sin(el) * dist, tgt.z + Math.cos(el) * dist);
+      controls.target.copy(tgt); controls.update();
+      draw(); requestAnimationFrame(() => { draw(); window.READY = true; });
+      return;
+    }
   }
   // fit the tabletop camera: frontal, slight elevation, house fills the frame like the board crop
   const box = new THREE.Box3(); root.traverse((o) => { if (o.isMesh && !o.name.startsWith('tabletop')) box.expandByObject(o); });

@@ -245,103 +245,429 @@ def rug(x, y, z, w, l):
     bx('rug', (x, y, z + 0.006), (w, l, 0.012), M['rug'], 0.004)
 
 
-# ------------------------------------------------------------------ room shells
-def room(name, x0, x1, z0, z1, wp, d=D, back_window=True):
-    zc = z1
-    box(f'{name}_floor', x0, x1, 0, d, z0 - 0.08, z0, M['floor'], 0, 1.2)
-    box(f'{name}_back', x0, x1, d - WALL, d, z0, zc, M[wp], 0, 0.9)
-    box(f'{name}_wainB', x0, x1, d - WALL - 0.02, d - WALL, z0, z0 + 0.42, M['wain'], 0)
-    box(f'{name}_chairrail', x0, x1, d - WALL - 0.04, d - WALL, z0 + 0.42, z0 + 0.47, M['trim'], 0.005)
-    box(f'{name}_crown', x0, x1, d - WALL - 0.06, d - WALL, zc - 0.1, zc, M['trim'], 0.01)
-    box(f'{name}_base', x0, x1, d - WALL - 0.04, d - WALL, z0, z0 + 0.1, M['trim'], 0.005)
-    for xs, xe, sgn in ((x0, x0 + WALL, 1), (x1 - WALL, x1, -1)):
-        box(f'{name}_side', xs, xe, 0, d, z0, zc, M[wp], 0, 0.9)
-        xi = xe if sgn > 0 else xs
-        box(f'{name}_wainS', min(xi, xi + 0.02 * sgn), max(xi, xi + 0.02 * sgn), 0, d - WALL, z0, z0 + 0.42, M['wain'], 0)
-    box(f'{name}_ceil', x0, x1, 0, d, zc - 0.02, zc, M['ceil'], 0)
-    empty(f'Light_{name}', (0.5 * (x0 + x1), d * 0.45, zc - 0.45))
-    return 0.5 * (x0 + x1)
-
-
-BOOKS = [K.material(f'book_{i}', base=c, rough=0.6) for i, c in enumerate(['#7a2a2a', '#2a4a6a', '#3a5a2a', '#a07a3a'])]
+# ------------------------------------------------------------------ ROOM PLAN (round 9, H1)
+# 12 rooms on 4 levels, partitions with hinged doors, straight stairs stacked along the centre-bay back wall
+# (headroom >= 0.66 over a 1.0-tall doll on every flight), floor openings with balustrades, attic stair to the
+# centre-gable landing and a second stair (Laila's room) to the open loft. Markers: Room_<id>, Floor_<n>, Light_<id>,
+# Door_<a>_<b>, Stair_<id> (custom properties carry sizes / tags for the gameplay export in H5).
 F1, F2, F3, F4 = FLOORS
 CEIL = [F2 - 0.12, F3 - 0.12, F4 - 0.12]
 BAYS = [(POSTS[0], POSTS[1]), (POSTS[1], POSTS[2]), (POSTS[2], POSTS[3])]
-WPS = [['wp_gold', 'wp_rose', 'wp_cream'], ['wp_rose', 'wp_gold', 'wp_sage'], ['wp_cream', 'wp_gold', 'wp_rose']]
-for fi in range(3):
-    for bi, (a, b) in enumerate(BAYS):
-        z0, z1 = FLOORS[fi], CEIL[fi]
-        cx = room(f'R{fi}{bi}', a, b, z0, z1, WPS[fi][bi])
-        h = z1 - z0
-        w = b - a
-        if bi != 1:
-            chandelier(cx, 1.1, z1)
-        for sx, xw in ((1, a + WALL + 0.02), (-1, b - WALL - 0.02)):   # pictures on the side walls
-            for k, zz in enumerate((z0 + 1.05, z0 + 1.35)):
-                bx('sidePic', (xw + sx * 0.015, 0.9 + 0.5 * k, zz), (0.03, 0.3 - 0.08 * k, 0.24), M['frame'], 0.005)
-        if bi == 0 or (fi == 0 and bi == 1):  # bookshelf with books
-            sx0 = b - 0.55 if bi == 0 else a + 0.3
-            bx('shelf', (sx0, D - 0.22, z0 + 0.75), (0.5, 0.3, 1.5), M['wood'], 0.01)
-            for r in range(4):
-                xx = sx0 - 0.21
-                while xx < sx0 + 0.2:
-                    bw = rnd.uniform(0.03, 0.05)
-                    bx('book', (xx + bw / 2, D - 0.26, z0 + 0.2 + r * 0.34 + 0.12), (bw, 0.2, rnd.uniform(0.18, 0.26)), BOOKS[rnd.randrange(4)], 0)
-                    xx += bw + 0.004
-        if fi == 0 and bi == 0:   # living room: fireplace + armchairs
-            bx('fireplace', (cx, D - 0.25, z0 + 0.55), (1.0, 0.36, 1.1), M['wood'], 0.02)
-            bx('firebox', (cx, D - 0.44, z0 + 0.35), (0.5, 0.02, 0.45), M['iron'], 0)
-            K.ellipsoid('flames', V((cx, D - 0.42, z0 + 0.3)), (0.16, 0.05, 0.13), mat=M['fire'], nu=12, nv=8)
-            empty('Light_fire', (cx, D - 0.7, z0 + 0.35))
-            bx('mantel', (cx, D - 0.24, z0 + 1.12), (1.2, 0.42, 0.06), M['woodLight'], 0.01)
-            picture(cx, z0 + 1.45, 0.6, 0.4)
-            armchair(cx - 0.75, 0.9, z0); armchair(cx + 0.78, 1.0, z0, 'rose')
-            table(cx, 0.9, z0, 0.5, 0.4, 0.32); rug(cx, 1.1, z0, 1.6, 1.3)
-            lamp(a + 0.3, D - 0.5, z0 + 0.0, 0.9); plant(b - 0.25, D - 0.35, z0)
-        elif fi == 0 and bi == 1:  # dining
-            table(cx, 1.2, z0, 1.1, 0.7, 0.62, cloth=True)
-            for dx in (-0.35, 0.35):
-                chair(cx + dx, 1.7, z0, 0); chair(cx + dx, 0.72, z0, 1)
-            window(cx, z0 + 0.8, 0.8, 0.8); chandelier(cx, 1.2, z1)
-            cabinet(a + 0.35, D - 0.3, z0, 0.5, 1.2); rug(cx, 1.2, z0, 1.5, 1.4)
-            lamp(b - 0.3, D - 0.35, z0 + 0.8, 0.5); cabinet(b - 0.3, D - 0.35, z0, 0.45, 0.8)
-        elif fi == 0 and bi == 2:  # kitchen
-            cabinet(cx - 0.2, D - 0.3, z0, w - 0.5, 0.85, 0.5, 'woodLight')
-            bx('counter', (cx - 0.2, D - 0.3, z0 + 0.88), (w - 0.45, 0.55, 0.05), M['pot'], 0.01)
-            bx('range', (cx + 0.35, D - 0.33, z0 + 0.45), (0.7, 0.55, 0.9), M['iron'], 0.02)
-            bx('hood', (cx + 0.35, D - 0.3, z0 + 1.45), (0.75, 0.5, 0.4), M['trim'], 0.02)
-            cabinet(cx - 0.4, D - 0.2, z0 + 1.2, 0.8, 0.5, 0.3, 'woodLight')
-            window(cx - 0.45, z0 + 1.0, 0.5, 0.6); table(cx - 0.3, 0.9, z0, 0.6, 0.5, 0.62)
-            plant(cx - 0.3, 0.9, z0 + 0.65, 0.5); cabinet(a + 0.3, 1.0, z0, 0.4, 0.85, 0.5, 'woodLight')
-        elif bi == 0:              # bedrooms (left)
-            bed(cx + 0.05, D - 0.8, z0, 1.0, 1.3)
-            lamp(cx - 0.75, D - 0.4, z0 + 0.5, 0.45); cabinet(cx - 0.75, D - 0.4, z0, 0.4, 0.5)
-            lamp(cx + 0.8, D - 0.4, z0 + 0.5, 0.45); cabinet(cx + 0.8, D - 0.4, z0, 0.4, 0.5)
-            picture(cx, z0 + 1.25, 0.5, 0.35); rug(cx, 1.0, z0, 1.4, 1.0)
-            chair(a + 0.35, 0.8, z0, 0, 'sofa')
-            if fi == 2:
-                cabinet(a + 0.4, D - 0.25, z0, 0.6, 1.5, 0.3)  # bookcase
-        elif bi == 1:              # sitting rooms
-            window(cx, z0 + 0.75, 0.75, 0.75); armchair(cx - 0.55, 1.0, z0, 'rose'); armchair(cx + 0.55, 1.0, z0)
-            table(cx, 0.9, z0, 0.45, 0.4, 0.4); chandelier(cx, 1.1, z1); picture(a + 0.35, z0 + 1.1, 0.3, 0.3)
-            plant(b - 0.28, D - 0.35, z0)
-        else:                      # right rooms
-            if fi == 1:
-                cabinet(cx, D - 0.3, z0, w - 0.5, 0.9); window(cx + 0.3, z0 + 1.0, 0.5, 0.55)
-                table(cx - 0.3, 0.9, z0, 0.7, 0.5, 0.7); chair(cx - 0.3, 0.45, z0, 1); lamp(cx + 0.5, 0.9, z0 + 0.0, 0.85)
-            else:
-                bed(cx, D - 0.85, z0, 1.1, 1.3, 'linen'); window(cx, z0 + 0.9, 0.6, 0.6, D - WALL / 2)
-                lamp(b - 0.3, D - 0.4, z0 + 0.5, 0.45); cabinet(b - 0.3, D - 0.4, z0, 0.4, 0.5); chair(a + 0.35, 0.8, z0, 0, 'rose')
+XI = [(POSTS[0] - 0.04, POSTS[1] - 0.04), (POSTS[1] + 0.04, POSTS[2] - 0.04), (POSTS[2] + 0.04, POSTS[3] + 0.04)]
+YB = D - WALL                      # back wall interior face
+DY0, DY1, DH = 0.36, 0.96, 1.25    # partition door: y range + height
+BOOKS = [K.material(f'book_{i}', base=c, rough=0.6) for i, c in enumerate(['#7a2a2a', '#2a4a6a', '#3a5a2a', '#a07a3a'])]
+M.update(enamel=K.material('enamel', base='#f4f0ea', rough=0.15, coat=0.6), mirror=K.material('mirror', base='#dfe6ee', metal=1.0, rough=0.05),
+         toyR=K.material('toy_red', base='#c0443a', rough=0.5), toyB=K.material('toy_blue', base='#3c6aa8', rough=0.5),
+         toyY=K.material('toy_yellow', base='#e0b440', rough=0.5), paper=K.material('paper', base='#efe6d2', rough=0.8))
+ROOMS = [  # id, level, bay, title, wallpaper
+    ('living', 0, 0, 'Living room', 'wp_gold'), ('dining', 0, 1, 'Dining room', 'wp_rose'), ('kitchen', 0, 2, 'Kitchen', 'wp_cream'),
+    ('master', 1, 0, 'Master bedroom', 'wp_rose'), ('sitting', 1, 1, 'Sitting & play room', 'wp_gold'), ('bath', 1, 2, 'Bathroom', 'wp_blue'),
+    ('elias', 2, 0, "Elias's room", 'wp_sage'), ('study', 2, 1, 'Study & library', 'wp_gold'), ('laila', 2, 2, "Laila's room", 'wp_rose'),
+]
+RID_OF = {(r[1], r[2]): r for r in ROOMS}
 
-# ------------------------------------------------------------------ attic rooms
-# centre gable attic room (with arched window) and right attic room (open under the roof)
-ga, gb = X(1180), X(1310)
-room('A_centre', ga + 0.1, gb - 0.1, F4, Z(650), 'wp_cream', d=D * 0.8)
-window(0.5 * (ga + gb), F4 + 0.5, 0.5, 0.75, D * 0.8 - WALL / 2)
-chair(0.5 * (ga + gb) - 0.4, 0.8, F4, 0); table(0.5 * (ga + gb) + 0.2, 0.9, F4, 0.5, 0.4, 0.5)
-ra, rb = X(1295), X(1410)
-room('A_right', ra, rb, F4, Z(668), 'wp_sage', d=D * 0.8)
-armchair(0.5 * (ra + rb) - 0.1, 1.2, F4, 'linen'); plant(rb - 0.35, 1.3, F4, 1.2); picture(0.5 * (ra + rb), F4 + 0.95, 0.5, 0.35, D * 0.8 - WALL / 2)
+
+def tag(objs, **kv):
+    for o in objs:
+        for k, v in kv.items():
+            o[k] = v
+    return objs
+
+
+def place(fn, x, y, z, rot=0.0, room=None, item=None, **kw):
+    """Build fn at the origin, then rotate about Z and move to (x, y, z); tag every new object."""
+    before = set(bpy.context.scene.objects)
+    fn(0.0, 0.0, 0.0, **kw)
+    new = [o for o in bpy.context.scene.objects if o not in before]
+    Mt = Matrix.Translation((x, y, z)) @ Matrix.Rotation(rot, 4, 'Z')
+    for o in new:
+        if o.type == 'MESH':
+            o.data.transform(Mt)
+        else:
+            o.location = Mt @ o.location
+    return tag(new, ll_room=room or '', ll_item=item or fn.__name__)
+
+
+def marker(name, p, **props):
+    e = empty(name, p)
+    for k, v in props.items():
+        e[k] = v
+    return e
+
+
+# ---------------- floors with stair openings
+def slab_with_holes(name, z, x0, x1, y0, y1, holes, top_mat, bottom_mat=None, thick=0.12):
+    """Floor slab (plank top + plaster ceiling below) as rectangles around axis-aligned holes."""
+    xs = sorted({x0, x1, *[h[0] for h in holes], *[h[1] for h in holes]})
+    ys = sorted({y0, y1, *[h[2] for h in holes], *[h[3] for h in holes]})
+    for i in range(len(xs) - 1):
+        for j in range(len(ys) - 1):
+            cx, cy = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
+            if any(h[0] <= cx <= h[1] and h[2] <= cy <= h[3] for h in holes):
+                continue
+            box(f'{name}_top', xs[i], xs[i + 1], ys[j], ys[j + 1], z - 0.025, z, top_mat, 0, 1.2)
+            if bottom_mat:
+                box(f'{name}_ceil', xs[i], xs[i + 1], ys[j], ys[j + 1], z - thick, z - 0.025, bottom_mat, 0, 1.0)
+
+
+# ---------------- stairs
+STAIRS = []
+
+
+def stair(sid, axis, s0, s1, z0, z1, a0, a1, n=10, mat='woodLight', room='', head=1.10):
+    """Open-tread straight flight. axis 'x' or 'y'; runs from s0 (bottom) to s1 (top) along that axis, a0..a1 across.
+    Returns the opening needed in the floor above: along-axis range where headroom < `head`."""
+    H = z1 - z0; L = s1 - s0; rise, tread = H / n, L / n
+    objs = []
+    for i in range(n):
+        u0, u1 = s0 + tread * i, s0 + tread * (i + 1)
+        zt = z0 + rise * (i + 1)
+        lo, hi = min(u0, u1), max(u0, u1)
+        if axis == 'x':
+            objs.append(box(f'{sid}_tread', lo, hi + 0.01, a0, a1, zt - 0.045, zt, M[mat], 0.005))
+            objs.append(box(f'{sid}_riser', lo, lo + 0.015, a0, a1, zt - rise, zt - 0.045, M['wood'], 0) if L > 0 else box(f'{sid}_riser', hi - 0.015, hi, a0, a1, zt - rise, zt - 0.045, M['wood'], 0))
+        else:
+            objs.append(box(f'{sid}_tread', a0, a1, lo - 0.01, hi, zt - 0.045, zt, M[mat], 0.005))
+    # stringer on the open side + handrail with balusters
+    open_a = a0 if axis == 'x' else a0
+    for k in range(n):
+        u = s0 + L * (k + 0.5) / n; zt = z0 + H * (k + 1) / n
+        p = (u, open_a + 0.03, zt + 0.28) if axis == 'x' else (open_a + 0.03, u, zt + 0.28)
+        objs.append(cyl(f'{sid}_baluster', p, 0.012, 0.56, M['trim'], 6))
+    pa = V((s0, open_a + 0.03, z0 + rise + 0.56)) if axis == 'x' else V((open_a + 0.03, s0, z0 + rise + 0.56))
+    pb = V((s1, open_a + 0.03, z1 + 0.56)) if axis == 'x' else V((open_a + 0.03, s1, z1 + 0.56))
+    objs.append(K.sweep(f'{sid}_handrail', [pa, pb], lambda t: (0.022, 0.022), nprof=8, mat=M['wood'], cap=True))
+    tag(objs, ll_room=room, ll_item='stair')
+    # headroom: opening where the tread is closer than `head` below the slab above
+    frac = max(0.0, (H - head) / H)
+    h0 = s0 + L * frac
+    bot = (s0, (a0 + a1) / 2, z0) if axis == 'x' else ((a0 + a1) / 2, s0, z0)
+    top = (s1, (a0 + a1) / 2, z1) if axis == 'x' else ((a0 + a1) / 2, s1, z1)
+    STAIRS.append(dict(id=sid, bottom=bot, top=top, axis=axis, n=n))
+    marker(f'Stair_{sid}', V(bot), ll_type='stair', top_x=top[0], top_y=top[1], top_z=top[2], room=room)
+    return (min(h0, s1), max(h0, s1))
+
+
+def balustrade(name, pts, z, h=0.55):
+    for (xa, ya), (xb, yb) in zip(pts, pts[1:]):
+        L = math.hypot(xb - xa, yb - ya); n = max(2, int(L / 0.12))
+        for k in range(n + 1):
+            t = k / n
+            cyl(f'{name}_bal', (xa + (xb - xa) * t, ya + (yb - ya) * t, z + h / 2), 0.012, h, M['trim'], 6)
+        K.sweep(f'{name}_rail', [V((xa, ya, z + h)), V((xb, yb, z + h))], lambda t: (0.02, 0.02), nprof=8, mat=M['wood'])
+
+
+# main flights: centre bay, back strip, left -> right, stacked
+ca, cb = XI[1]
+SY0, SY1 = YB - 0.52, YB
+holes = {1: [], 2: [], 3: []}
+ms, me = ca + 0.25, cb - 0.35
+h = stair('S1', 'x', ms, me, F1, F2, SY0, SY1, room='dining'); holes[1].append((h[0], h[1], SY0, SY1))
+h = stair('S2', 'x', ms, me, F2, F3, SY0, SY1, room='sitting'); holes[2].append((h[0], h[1], SY0, SY1))
+# attic flight (steep): centre bay back strip, arrives under the centre gable ridge
+h = stair('S3', 'x', ca + 0.02, X(1245) + 0.40, F3, F4, SY0, SY1, n=10, room='study'); holes[3].append((h[0], h[1], SY0, SY1))
+# loft flight: Laila's room, right wall, back (bottom) -> front (top)
+ra, rb = XI[2][1] - 0.52, XI[2][1] - 0.02
+h = stair('S4', 'y', YB - 0.20, 0.62, F3, F4, ra, rb, n=10, room='laila'); holes[3].append((ra, rb, h[0], h[1]))
+slab_with_holes('floorF1', F1, POSTS[0] - 0.16, POSTS[3] + 0.16, 0, D, [], M['floor'])
+for lvl, z in ((1, F2), (2, F3), (3, F4)):
+    slab_with_holes(f'floorF{lvl + 1}', z, POSTS[0] - 0.16, POSTS[3] + 0.16, 0, D, holes[lvl], M['floor'], M['ceil'])
+for lvl, z in ((1, F2), (2, F3)):
+    (x0h, x1h, y0h, y1h), = holes[lvl]
+    balustrade(f'rail{lvl}', [(x0h, y0h), (x1h, y0h)], z); balustrade(f'railE{lvl}', [(x0h, y0h), (x0h, y1h)], z)
+(x0h, x1h, y0h, y1h) = holes[3][0]
+balustrade('railA', [(x0h, y0h), (x1h, y0h)], F4); balustrade('railAE', [(x0h, y0h), (x0h, y1h)], F4)
+(x0h, x1h, y0h, y1h) = holes[3][1]
+balustrade('railL', [(x0h, y0h), (x0h, y1h), (x1h, y1h)], F4)
+
+
+# ---------------- walls: back walls, outer wall linings, partitions with doors
+def finishes(name, x0, x1, y_face, z0, z1, wp, sgn=-1):
+    """Wallpaper + wainscot + chair rail + crown + skirting on a wall whose room-side face is at y_face (back wall)."""
+    box(f'{name}_wp', x0, x1, y_face, y_face + 0.01, z0, z1, M[wp], 0, 0.9)
+    box(f'{name}_wain', x0, x1, y_face - 0.02, y_face, z0, z0 + 0.42, M['wain'], 0)
+    box(f'{name}_rail', x0, x1, y_face - 0.04, y_face, z0 + 0.42, z0 + 0.47, M['trim'], 0.005)
+    box(f'{name}_crown', x0, x1, y_face - 0.06, y_face, z1 - 0.1, z1, M['trim'], 0.01)
+    box(f'{name}_skirt', x0, x1, y_face - 0.04, y_face, z0, z0 + 0.1, M['trim'], 0.005)
+
+
+def side_finishes(name, x_face, sgn, y0, y1, z0, z1, wp, gaps=()):
+    """Same on a side wall (room side at x_face, room toward sgn*x). gaps: [(y0, y1, z_top)] door openings."""
+    segs = [(y0, y1)]
+    for g0, g1, _ in gaps:
+        segs = [s for a, b in segs for s in ((a, g0), (g1, b)) if True]
+    segs = [(a, b) for a, b in segs if b - a > 0.01]
+    xa, xb = (x_face, x_face + 0.01 * sgn)
+    for a, b in segs:
+        box(f'{name}_wp', min(xa, xb), max(xa, xb), a, b, z0, z1, M[wp], 0, 0.9)
+        box(f'{name}_wain', min(x_face, x_face + 0.02 * sgn), max(x_face, x_face + 0.02 * sgn), a, b, z0, z0 + 0.42, M['wain'], 0)
+        box(f'{name}_skirt', min(x_face, x_face + 0.04 * sgn), max(x_face, x_face + 0.04 * sgn), a, b, z0, z0 + 0.1, M['trim'], 0.005)
+    for g0, g1, zt in gaps:   # lintel wallpaper above the door + architrave
+        box(f'{name}_wpL', min(xa, xb), max(xa, xb), g0, g1, zt, z1, M[wp], 0, 0.9)
+        for yy in (g0, g1):
+            box(f'{name}_arch', min(x_face, x_face + 0.03 * sgn), max(x_face, x_face + 0.03 * sgn), yy - 0.03, yy + 0.03, z0, zt + 0.05, M['trim'], 0.005)
+        box(f'{name}_archT', min(x_face, x_face + 0.03 * sgn), max(x_face, x_face + 0.03 * sgn), g0 - 0.03, g1 + 0.03, zt, zt + 0.06, M['trim'], 0.005)
+
+
+DOORS = []
+
+
+def door(did, x, y_hinge, y_free, z0, open_deg=170.0, rooms=('', '')):   # exported folded back against the wall
+    """Hinged door leaf in a partition at x. Object origin = hinge; rotation about Z opens it (exported open)."""
+    w = abs(y_free - y_hinge); sgn = 1 if y_free > y_hinge else -1
+    bm_objs = []
+    leaf = box(f'Door_{did}', -0.02, 0.02, 0 if sgn > 0 else -w, w if sgn > 0 else 0, 0, DH - 0.02, M['wood'], 0.006)
+    for zz in (0.25, 0.85):   # raised panels
+        p = box(f'Door_{did}_panel', -0.03, 0.03, (0.08 if sgn > 0 else -w + 0.08), (w - 0.08 if sgn > 0 else -0.08), zz, zz + 0.32, M['woodLight'], 0.004)
+        bm_objs.append(p)
+    knob = K.ellipsoid(f'Door_{did}_knob', V((0.0, sgn * (w - 0.07), 0.6)), (0.05, 0.02, 0.02), mat=M['brass'], nu=10, nv=6)
+    bm_objs.append(knob)
+    for o in bm_objs:   # merge into the leaf so the whole door rotates as one node
+        o.select_set(False)
+    import bmesh as _bm
+    bm = _bm.new(); bm.from_mesh(leaf.data)
+    for o in bm_objs:
+        bm.from_mesh(o.data); bpy.data.objects.remove(o)
+    bm.to_mesh(leaf.data); bm.free()
+    leaf.data.materials.append(M['woodLight']); leaf.data.materials.append(M['brass'])
+    leaf.location = (x, y_hinge, z0)
+    leaf.rotation_euler = (0, 0, math.radians(open_deg) * (-sgn))
+    leaf['ll_type'] = 'door'; leaf['ll_open_deg'] = open_deg; leaf['ll_rooms'] = '|'.join(rooms)
+    DOORS.append(dict(id=did, x=x, y=(y_hinge + y_free) / 2, z=z0, rooms=rooms))
+    return leaf
+
+
+for lvl in range(3):
+    z0, z1 = FLOORS[lvl], FLOORS[lvl + 1] - 0.12
+    for bay in range(3):
+        rid, _, _, title, wp = RID_OF[(lvl, bay)]
+        x0, x1 = XI[bay]
+        finishes(f'{rid}_back', x0, x1, YB, z0, z1, wp)
+        marker(f'Room_{rid}', V(((x0 + x1) / 2, 1.2, z0 + 0.8)), ll_type='room', title=title, level=lvl, w=x1 - x0, d=YB, h=z1 - z0, z0=z0,
+               x0=x0, x1=x1)
+        empty(f'Light_{rid}', ((x0 + x1) / 2, D * 0.45, z1 - 0.45))
+    # outer wall linings
+    side_finishes(f'{RID_OF[(lvl, 0)][0]}_sideL', XI[0][0], 1, 0, YB, z0, z1, RID_OF[(lvl, 0)][4])
+    side_finishes(f'{RID_OF[(lvl, 2)][0]}_sideR', XI[2][1], -1, 0, YB, z0, z1, RID_OF[(lvl, 2)][4])
+    # partitions (structural core + both linings, door opening near the front) + doors
+    for pi, px in ((1, POSTS[1]), (2, POSTS[2])):
+        la, rb_ = RID_OF[(lvl, pi - 1)], RID_OF[(lvl, pi)]
+        for a, b in ((0.12, DY0), (DY1, YB)):
+            box('partition', px - 0.03, px + 0.03, a, b, z0, z1, M['trimDark'], 0)
+        box('partitionLintel', px - 0.03, px + 0.03, DY0, DY1, z0 + DH, z1, M['trimDark'], 0)
+        side_finishes(f'{la[0]}_partR', px - 0.03, -1, 0.12, YB, z0, z1, la[4], gaps=[(DY0, DY1, z0 + DH)])
+        side_finishes(f'{rb_[0]}_partL', px + 0.03, 1, 0.12, YB, z0, z1, rb_[4], gaps=[(DY0, DY1, z0 + DH)])
+        door(f'{la[0]}_{rb_[0]}', px, DY1, DY0 + 0.02, z0, rooms=(la[0], rb_[0]))
+    marker(f'Floor_{lvl + 1}', V((0.0, 1.2, (z0 + z1) / 2)), ll_type='floor', level=lvl, w=WING[1] - WING[0], h=z1 - z0 + 0.3)
+
+# ---------------- attic: centre-gable landing, open loft, sealed left-gable storage
+gxC, apC = X(1245), Z(625)
+_hwC = (X(1310) - X(1180)) / 2 + 0.05
+def roofC(x):
+    return apC + 0.05 - abs(x - gxC) * (apC + 0.05 - (EAVE_Z - 0.02)) / (_hwC + 0.12)
+ACX0, ACX1 = X(1192), X(1298)
+poly('attic_c_back', [(ACX0, YB, F4), (ACX1, YB, F4), (ACX1, YB, roofC(ACX1) - 0.04), (gxC, YB, apC - 0.06), (ACX0, YB, roofC(ACX0) - 0.04)], M['wp_cream'], 0.02, 0.9)
+for xx in (ACX0, ACX1):
+    box('attic_c_side', xx - 0.02, xx + 0.02, 0, YB, F4, roofC(xx) - 0.03, M['wp_cream'], 0, 0.9)
+window(X(1237), F4 + 0.30, 0.42, 0.62, YB - 0.01)
+marker('Room_attic_c', V((gxC, 1.0, F4 + 0.6)), ll_type='room', title='Attic landing (centre gable)', level=3, w=ACX1 - ACX0, d=YB, h=apC - F4, z0=F4,
+       x0=ACX0, x1=ACX1)
+empty('Light_attic_c', (gxC, 1.0, F4 + 1.0))
+LX0, LX1, LY1 = X(1300), X(1410), 1.85
+for xx in (LX0, LX1):
+    box('loft_side', xx - 0.03, xx + 0.03, 0, LY1, F4, Z(668), M['wp_sage'], 0, 0.9)
+box('loft_knee', LX0, LX1, LY1, LY1 + 0.04, F4, F4 + 0.62, M['wp_sage'], 0, 0.9)
+marker('Room_loft', V(((LX0 + LX1) / 2, 0.9, F4 + 0.5)), ll_type='room', title='Loft playroom', level=3, w=LX1 - LX0, d=LY1, h=Z(668) - F4, z0=F4, x0=LX0, x1=LX1)
+empty('Light_loft', ((LX0 + LX1) / 2, 0.9, F4 + 0.85))
+marker('Floor_4', V((0.0, 1.0, F4 + 0.7)), ll_type='floor', level=3, w=WING[1] - WING[0], h=1.9)
+empty('Light_attic_l', (X(1137), 0.8, F4 + 0.6))
+marker('Room_attic_l', V((X(1137), 0.8, F4 + 0.5)), ll_type='room', title='Storage + window seat (left gable, sealed)', level=3, w=1.8, d=1.6, h=1.2, z0=F4,
+       x0=X(1090), x1=X(1188), walkable=0)
+
+
+# ---------------- furniture kit additions (blockout shapes; upgraded in H3 rounds)
+def sofa(x, y, z, mat='sofa'):
+    bx('sofa_seat', (x, y, z + 0.30), (1.0, 0.48, 0.2), M[mat], 0.06); bx('sofa_back', (x, y + 0.2, z + 0.58), (1.0, 0.12, 0.42), M[mat], 0.06)
+    for sx in (-0.47, 0.47):
+        bx('sofa_arm', (x + sx, y, z + 0.45), (0.1, 0.48, 0.22), M[mat], 0.05)
+    for sx in (-0.42, 0.42):
+        for sy in (-0.18, 0.18):
+            cyl('sofa_leg', (x + sx, y + sy, z + 0.1), 0.025, 0.2, M['wood'], 8)
+
+
+def fireplace(x, y, z):
+    bx('fireplace', (x, y, z + 0.55), (1.0, 0.36, 1.1), M['wood'], 0.02)
+    bx('firebox', (x, y - 0.19, z + 0.35), (0.5, 0.02, 0.45), M['iron'], 0)
+    K.ellipsoid('flames', V((x, y - 0.17, z + 0.3)), (0.16, 0.05, 0.13), mat=M['fire'], nu=12, nv=8)
+    empty('Light_fire', (x, y - 0.45, z + 0.35))
+    bx('mantel', (x, y + 0.01, z + 1.12), (1.2, 0.42, 0.06), M['woodLight'], 0.01)
+
+
+def dresser(x, y, z):
+    cabinet(x, y, z, 0.7, 0.8, 0.35)
+    bx('dresser_hutch', (x, y + 0.08, z + 1.15), (0.66, 0.18, 0.7), M['wood'], 0.01)
+    for k in range(3):
+        cyl('plate', (x - 0.2 + 0.2 * k, y - 0.0, z + 1.2), 0.08, 0.01, M['pot'], 16)
+
+
+def range_stove(x, y, z):
+    bx('range', (x, y, z + 0.45), (0.7, 0.5, 0.9), M['iron'], 0.02)
+    bx('range_top', (x, y, z + 0.91), (0.74, 0.52, 0.03), M['iron'], 0.01)
+    for sx in (-0.17, 0.17):
+        cyl('burner', (x + sx, y - 0.05, z + 0.93), 0.08, 0.01, M['brass'], 16)
+    bx('hood', (x, y + 0.05, z + 1.5), (0.75, 0.45, 0.35), M['trim'], 0.02)
+
+
+def counter_sink(x, y, z, w=1.0):
+    cabinet(x, y, z, w, 0.85, 0.5, 'woodLight')
+    bx('counter', (x, y, z + 0.88), (w + 0.04, 0.54, 0.05), M['pot'], 0.01)
+    bx('sink_basin', (x - w * 0.25, y, z + 0.9), (0.36, 0.3, 0.04), M['enamel'], 0.01)
+    cyl('tap', (x - w * 0.25, y + 0.18, z + 1.0), 0.012, 0.18, M['brass'], 8)
+    bx('shelf_wall', (x, y + 0.14, z + 1.45), (w, 0.22, 0.03), M['woodLight'], 0.005)
+    for k in range(5):
+        cyl('jar', (x - w * 0.4 + k * w * 0.2, y + 0.14, z + 1.53), 0.04, 0.13, M['pot' if k % 2 else 'glass'], 10)
+
+
+def icebox(x, y, z):
+    bx('icebox', (x, y, z + 0.62), (0.55, 0.45, 1.24), M['woodLight'], 0.02)
+    for zz in (0.35, 0.95):
+        bx('icebox_door', (x, y - 0.23, z + zz), (0.47, 0.02, 0.45), M['wood'], 0.01)
+        bx('icebox_latch', (x + 0.18, y - 0.25, z + zz), (0.04, 0.02, 0.08), M['brass'], 0.005)
+
+
+def wardrobe(x, y, z):
+    bx('wardrobe', (x, y, z + 0.8), (0.75, 0.42, 1.6), M['wood'], 0.02)
+    for sx in (-0.18, 0.18):
+        bx('wardrobe_door', (x + sx, y - 0.215, z + 0.85), (0.34, 0.01, 1.3), M['woodLight'], 0.005)
+    bx('wardrobe_crown', (x, y, z + 1.63), (0.8, 0.46, 0.06), M['wood'], 0.01)
+
+
+def vanity(x, y, z):
+    table(x, y, z, 0.6, 0.35, 0.62)
+    bx('vanity_mirror', (x, y + 0.15, z + 1.0), (0.4, 0.02, 0.5), M['mirror'], 0.0)
+    bx('vanity_frame', (x, y + 0.16, z + 1.0), (0.46, 0.015, 0.56), M['frame'], 0.005)
+
+
+def tub(x, y, z):
+    K.ellipsoid('tub', V((x, y, z + 0.33)), (0.55, 0.26, 0.2), mat=M['enamel'], nu=28, nv=14)
+    bx('tub_rim', (x, y, z + 0.48), (1.06, 0.48, 0.04), M['enamel'], 0.02)
+    for sx in (-0.42, 0.42):
+        for sy in (-0.16, 0.16):
+            K.ellipsoid('tub_claw', V((x + sx, y + sy, z + 0.06)), (0.04, 0.04, 0.06), mat=M['brass'], nu=8, nv=6)
+    cyl('tub_tap', (x - 0.5, y, z + 0.58), 0.015, 0.2, M['brass'], 8)
+
+
+def toilet(x, y, z):
+    cyl('toilet_bowl', (x, y - 0.05, z + 0.2), 0.16, 0.4, M['enamel'], 16, 0.12)
+    bx('toilet_tank', (x, y + 0.14, z + 0.62), (0.34, 0.14, 0.32), M['enamel'], 0.02)
+    bx('toilet_seat', (x, y - 0.05, z + 0.41), (0.34, 0.38, 0.03), M['wood'], 0.01)
+
+
+def pedestal_sink(x, y, z):
+    cyl('pedestal', (x, y, z + 0.38), 0.07, 0.76, M['enamel'], 12, 0.05)
+    bx('basin', (x, y, z + 0.8), (0.46, 0.34, 0.08), M['enamel'], 0.03)
+    bx('mirror', (x, y + 0.16, z + 1.25), (0.38, 0.02, 0.5), M['mirror'], 0.0)
+    bx('mirror_frame', (x, y + 0.17, z + 1.25), (0.44, 0.015, 0.56), M['frame'], 0.005)
+
+
+def towel_rail(x, y, z):
+    for sy in (-0.2, 0.2):
+        cyl('rail_post', (x, y + sy, z + 0.45), 0.012, 0.9, M['brass'], 8)
+    K.sweep('rail_bar', [V((x, y - 0.2, z + 0.85)), V((x, y + 0.2, z + 0.85))], lambda t: (0.012, 0.012), nprof=8, mat=M['brass'])
+    bx('towel', (x, y, z + 0.66), (0.03, 0.34, 0.4), M['quilt'], 0.01)
+
+
+def desk(x, y, z):
+    table(x, y, z, 0.8, 0.45, 0.62)
+    bx('desk_drawers', (x + 0.25, y, z + 0.45), (0.28, 0.4, 0.3), M['wood'], 0.01)
+    for k in range(3):
+        bx('desk_book', (x - 0.25 + 0.05 * k, y + 0.1, z + 0.73), (0.04, 0.16, 0.2), BOOKS[k], 0)
+
+
+def bookshelf(x, y, z, w=0.6, h=1.4):
+    bx('bookshelf', (x, y, z + h / 2), (w, 0.3, h), M['wood'], 0.01)
+    rr = random.Random(int(abs(x * 100 + z * 10)))
+    for r in range(int(h / 0.34)):
+        xx = x - w / 2 + 0.05
+        while xx < x + w / 2 - 0.06:
+            bw = rr.uniform(0.03, 0.05)
+            bx('book', (xx + bw / 2, y - 0.04, z + 0.08 + r * 0.34 + 0.12), (bw, 0.2, rr.uniform(0.18, 0.26)), BOOKS[rr.randrange(4)], 0)
+            xx += bw + 0.004
+
+
+def toy_chest(x, y, z):
+    bx('toychest', (x, y, z + 0.18), (0.45, 0.3, 0.36), M['toyB'], 0.02)
+    bx('toychest_lid', (x, y, z + 0.38), (0.47, 0.32, 0.05), M['toyR'], 0.01)
+    K.ellipsoid('ball', V((x + 0.32, y - 0.1, z + 0.08)), (0.08, 0.08, 0.08), mat=M['toyY'], nu=12, nv=8)
+
+
+def toy_dollhouse(x, y, z):
+    bx('mini_house', (x, y, z + 0.2), (0.36, 0.24, 0.4), M['quilt'], 0.01)
+    poly('mini_roof', [(x - 0.2, y - 0.13, z + 0.4), (x + 0.2, y - 0.13, z + 0.4), (x, y - 0.13, z + 0.58)], M['toyB'], 0.26)
+
+
+def window_seat(x, y, z):
+    bx('seat_box', (x, y, z + 0.2), (0.8, 0.35, 0.4), M['woodLight'], 0.02)
+    bx('seat_cushion', (x, y, z + 0.43), (0.78, 0.33, 0.07), M['rose'], 0.03)
+
+
+def trunk(x, y, z):
+    bx('trunk', (x, y, z + 0.17), (0.5, 0.3, 0.34), M['wood'], 0.02)
+    bx('trunk_band', (x, y, z + 0.17), (0.52, 0.31, 0.04), M['brass'], 0.005)
+
+
+def globe(x, y, z):
+    cyl('globe_stand', (x, y, z + 0.35), 0.02, 0.7, M['wood'], 8)
+    K.ellipsoid('globe', V((x, y, z + 0.82)), (0.13, 0.13, 0.13), mat=M['toyB'], nu=16, nv=10)
+
+
+def small_bed(x, y, z, w=0.62, l=1.1, quilt='quilt'):
+    bed(x, y, z, w, l, quilt)
+
+
+# ---------------- dressing per room (walk paths: front band y<0.62 and door openings kept clear)
+z = F1
+xa0, xa1 = XI[0]; cxl = (xa0 + xa1) / 2
+place(fireplace, cxl, YB - 0.18, z, room='living'); picture(cxl, z + 1.45, 0.6, 0.4, YB)
+place(armchair, cxl - 0.72, 1.28, z, math.pi - 0.45, room='living'); place(armchair, cxl + 0.72, 1.28, z, math.pi + 0.45, room='living', mat='rose')
+place(sofa, xa0 + 0.27, 1.15, z, math.pi / 2, room='living'); place(table, cxl, 1.05, z, room='living', w=0.5, l=0.4, h=0.32)
+rug(cxl, 1.2, z, 1.6, 1.3); place(lamp, xa0 + 0.25, YB - 0.3, z, room='living', h=0.9); place(plant, xa1 - 0.25, YB - 0.3, z, room='living')
+xc0, xc1 = XI[1]
+place(table, 0.02, 1.15, z, room='dining', w=0.8, l=0.55, h=0.62, cloth=True)
+for dx in (-0.2, 0.22):
+    place(chair, dx, 0.8, z, math.pi, room='dining'); place(chair, dx, 1.52, z, 0.0, room='dining')
+place(dresser, xc1 - 0.19, 1.35, z, -math.pi / 2, room='dining'); chandelier(0.02, 1.15, CEIL[0]); rug(0.02, 1.15, z, 1.3, 1.1)
+xk0, xk1 = XI[2]
+place(counter_sink, xk0 + 0.62, YB - 0.27, z, room='kitchen', w=1.05); place(range_stove, xk1 - 0.45, YB - 0.27, z, room='kitchen')
+place(icebox, xk1 - 0.25, 1.2, z, -math.pi / 2, room='kitchen'); place(table, xk0 + 0.75, 1.15, z, room='kitchen', w=0.6, l=0.45, h=0.62)
+place(chair, xk0 + 0.75, 0.82, z, math.pi, room='kitchen'); window(xk0 + 0.62, z + 1.0, 0.5, 0.42, YB - 0.01); chandelier((xk0 + xk1) / 2, 1.1, CEIL[0])
+z = F2
+place(bed, cxl + 0.35, YB - 0.66, z, room='master', w=1.1, l=1.3); place(cabinet, cxl - 0.42, YB - 0.2, z, room='master', w=0.32, h=0.5, d=0.32)
+place(lamp, cxl - 0.42, YB - 0.2, z + 0.5, room='master', h=0.42); place(cabinet, cxl + 1.08, YB - 0.2, z, room='master', w=0.3, h=0.5, d=0.32)
+place(wardrobe, xa0 + 0.22, YB - 0.42, z, math.pi / 2, room='master'); place(vanity, xa0 + 0.2, 1.05, z, math.pi / 2, room='master')
+picture(cxl + 0.35, z + 1.25, 0.5, 0.35, YB); rug(cxl + 0.2, 1.1, z, 1.4, 1.0); chandelier(cxl, 1.1, CEIL[1])
+place(armchair, -0.42, 1.2, z, 0.0, room='sitting', mat='rose'); place(armchair, 0.32, 1.25, z, 0.0, room='sitting')
+place(table, -0.05, 0.85, z, room='sitting', w=0.42, l=0.36, h=0.36); place(toy_chest, -0.55, 0.62, z, room='sitting')
+window(-0.35, z + 0.85, 0.5, 0.5, YB - 0.01); rug(-0.05, 1.05, z, 1.3, 1.0); chandelier(0.02, 1.1, CEIL[1])
+place(tub, xk0 + 0.95, YB - 0.3, z, room='bath'); place(pedestal_sink, xk0 + 0.25, YB - 0.22, z, room='bath')
+place(toilet, xk1 - 0.25, 1.35, z, -math.pi / 2, room='bath'); place(towel_rail, xk1 - 0.06, 0.75, z, room='bath')
+window(xk0 + 0.95, z + 0.95, 0.4, 0.42, YB - 0.01); rug(xk0 + 0.9, 1.3, z, 0.9, 0.6); chandelier((xk0 + xk1) / 2, 1.1, CEIL[1])
+z = F3
+place(small_bed, xa0 + 0.4, YB - 0.6, z, room='elias', w=0.66, l=1.2); place(desk, cxl + 0.45, YB - 0.25, z, room='elias')
+place(chair, cxl + 0.45, YB - 0.62, z, math.pi, room='elias'); place(bookshelf, xa1 - 0.36, 1.45, z, -math.pi / 2, room='elias', w=0.6, h=1.3)
+place(lamp, cxl + 0.7, YB - 0.22, z + 0.62, room='elias', h=0.35); window(cxl + 0.45, z + 0.95, 0.5, 0.5, YB - 0.01); rug(cxl, 1.1, z, 1.2, 0.9)
+place(desk, 0.1, 1.15, z, room='study'); place(chair, 0.1, 1.5, z, 0.0, room='study'); place(globe, 0.72, 1.6, z, room='study')
+bx('study_shelf', (0.55, YB - 0.1, z + 1.25), (0.8, 0.18, 0.03), M['wood'], 0.005); rug(0.1, 1.0, z, 1.2, 0.9); chandelier(0.02, 1.0, CEIL[2])
+place(small_bed, xk0 + 0.4, YB - 0.56, z, room='laila', w=0.6, l=1.08, quilt='rose'); place(toy_chest, xk0 + 1.05, YB - 0.2, z, room='laila')
+place(toy_dollhouse, xk1 - 0.78, 1.3, z, room='laila'); rug(xk0 + 0.6, 0.95, z, 0.9, 0.7); window(xk0 + 0.4, z + 0.95, 0.45, 0.5, YB - 0.01)
+place(lamp, xk0 + 0.95, YB - 0.2, z + 0.36, room='laila', h=0.35)
+z = F4
+place(chair, gxC - 0.25, 0.75, z, 0.0, room='attic_c'); place(plant, gxC + 0.35, 0.55, z, room='attic_c', s=0.7); rug(gxC, 0.9, z, 0.8, 0.8)
+place(trunk, ACX0 + 0.35, 1.2, z, room='attic_c')
+place(armchair, LX0 + 0.55, 0.95, z, 0.3, room='loft', mat='linen'); place(plant, LX0 + 1.15, 1.45, z, room='loft', s=1.0)
+place(toy_chest, LX0 + 1.2, 0.7, z, room='loft'); rug(LX0 + 0.8, 0.95, z, 1.1, 0.9); place(lamp, LX0 + 0.25, 1.55, z, room='loft', h=0.5)
+place(window_seat, X(1137), 0.3, z, room='attic_l'); place(trunk, X(1137) - 0.5, 1.1, z, room='attic_l'); place(trunk, X(1137) + 0.45, 1.2, z, room='attic_l')
 
 # ------------------------------------------------------------------ facade frame
 FR = -0.06   # front plane of the trim
@@ -462,7 +788,8 @@ for gx, hw, apex, tag in GABLES:
         e = (gx + sgn * (hw + 0.12), base - 0.05)
         if tag == 'C' and sgn < 0:
             e = (X_VALLEY, Z_VALLEY)      # clipped at the valley (no X crossing)
-        corners = [(gx, -OV - 0.05, apex + 0.05), (e[0], -OV - 0.05, e[1]), (e[0], D * 0.6, e[1]), (gx, D * 0.6, apex + 0.05)]
+        yb_ = D + OV if tag == 'C' else D * 0.6   # round 9: centre gable runs the full depth (attic stair headroom)
+        corners = [(gx, -OV - 0.05, apex + 0.05), (e[0], -OV - 0.05, e[1]), (e[0], yb_, e[1]), (gx, yb_, apex + 0.05)]
         slab(f'gableRoof{tag}{sgn}', corners if sgn < 0 else corners[::-1], M['slate'], 0.06, 0.6)
     # shingled gable face, recessed a little
     tri = [(gx - hw, -0.05, base), (gx + hw, -0.05, base), (gx, -0.05, apex - 0.05)]
