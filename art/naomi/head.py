@@ -23,7 +23,7 @@ from mathutils.bvhtree import BVHTree
 # ----------------------------------------------------------------------------------------------- parameters
 H = dict(
     C=V((0.0, 0.0, 0.818)), a=0.126, bf=0.112, bb=0.126, c_top=0.152, c_bot=0.165,
-    eye_x=0.0639, eye_z=0.791, eye_front_y=-0.117, eye_r=0.043, iris_deg=56.0,
+    eye_x=0.0639, eye_z=0.801, eye_front_y=-0.108, eye_r=0.043, iris_deg=56.0,   # round 28: set into the face, raised
     ap_in=58.0, ap_out=80.0, lid_up=50.0, lid_low=-60.0, corner_in=-4.0, corner_out=8.0,
     nose_z=0.755, mouth_z=0.727, mouth_hw=0.0285, chin_z=0.676,
     brow_z=0.864, brow_x0=0.034, brow_x1=0.104, brow_arch=0.010, brow_thick=0.0078,

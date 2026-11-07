@@ -56,7 +56,7 @@ float kkTerm(vec3 T, vec3 N, vec3 H, float sh, float ex) { vec3 Ts = normalize(T
   vec3 Vv = normalize(vViewPosition); vec3 kk = vec3(0.0);
   float jit = 0.0;
   #ifdef USE_MAP
-    jit = (texture2D(map, vMapUv).r - 0.95) * 1.5;
+    jit = (texture2D(map, vMapUv).r - 0.97) * 0.6;
   #endif
   ${DIR_LOOP('vec3 Hh = normalize(L + Vv); float w = clamp(dot(Nn, L) * 0.6 + 0.4, 0.0, 1.0); kk += Lc * w * (kkC1 * kkA1 * kkTerm(T, Nn, Hh, kkS1 + jit * 0.08, kkE1) + kkC2 * kkA2 * kkTerm(T, Nn, Hh, kkS2 + jit * 0.12, kkE2));')}
   outgoingLight += kk;

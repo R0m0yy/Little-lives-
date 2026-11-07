@@ -35,12 +35,36 @@ def dirs_path(ws, n):
     return out
 
 
+BUN_DIR = (P['bun'] - HD.H['C']).normalized()
+
+
+def _flow():
+    a = BUN_DIR
+    e1 = V((0, -1, 0)) - a * a.dot(V((0, -1, 0)))
+    e1.normalize()
+    return a, e1, a.cross(e1)
+
+
+FLOW = _flow()
+
+
+def groove(d, n=8, depth=0.42):
+    """Big sculpted masses: rounded lobes with soft valleys along great circles converging on the bun (round 27)."""
+    a, e1, e2 = FLOW
+    psi = math.atan2(d.dot(e2), d.dot(e1))
+    ph = n * psi / 2 + 0.6 * math.sin(2 * psi + 0.4) + 0.35 * math.sin(5 * psi + 1.1)
+    lobe = abs(math.sin(ph)) ** 0.5
+    conv = HD.smooth(0.97, 0.55, d.dot(a))          # masses merge into the bun
+    return 1 - depth * (1 - lobe) * conv
+
+
 def thick(d):
     """Hair volume above the scalp for direction d (units)."""
     t = P['t_side'] + (P['t_top'] - P['t_side']) * max(0.0, d.z) ** 1.1
     t += (P['t_back'] - P['t_side']) * max(0.0, d.y) * 0.8 + (P['t_front'] - P['t_side']) * max(0.0, -d.y) * max(0.0, d.z)
     t += 0.012 * HD.gauss_ang(d, V((-0.55, 0.30, 0.78)), 0.45)     # dome peaks toward her right/back (board silhouette)
-    return t
+    t += 0.030 * HD.gauss_ang(d, (BUN_DIR + V((0.25, -0.15, 0.55))).normalized(), 0.42)   # hair sweeps up into the bun
+    return t * groove(d)
 
 
 def cap_point(d, lift=0.0):
@@ -76,7 +100,7 @@ def build(K, M):
         for k, d in enumerate(ds):
             t = k / (n - 1)
             prof_t = th * (0.18 + 0.82 * math.sin(math.pi * min(1.0, 0.02 + t * 0.98)) ** 0.55)
-            p = cap_point(d, lift * math.sin(math.pi * t)) + (cap_point(d) - C).normalized() * (prof_t * 0.42)
+            p = cap_point(d, lift * math.sin(math.pi * t)) + (cap_point(d) - C).normalized() * (prof_t * 0.12)   # sunk into the volume: soft valleys
             pts.append(p); nrm.append((p - C).normalized())
         prof = lambda t: (th * (0.18 + 0.82 * math.sin(math.pi * min(1.0, 0.02 + t * 0.98)) ** 0.55) * 0.5,
                           width * (0.22 + 0.78 * math.sin(math.pi * min(1.0, 0.04 + t * 0.96)) ** 0.5) * 0.5)
@@ -86,16 +110,12 @@ def build(K, M):
     bd = bun_dir
     CL = [
         # side-swept forehead lock: from the parting on her left, across the forehead, down her right temple, back to the bun
-        ('HairClump_S1', [V((0.34, -0.60, 0.72)), V((-0.02, -0.80, 0.60)), V((-0.70, -0.62, 0.32)), V((-0.96, 0.02, 0.26)), bd], 0.070, 0.030, 0.004),
-        ('HairClump_S2', [V((0.36, -0.48, 0.80)), V((0.00, -0.66, 0.75)), V((-0.60, -0.48, 0.62)), V((-0.86, 0.12, 0.50)), bd], 0.080, 0.032, 0.006),
-        ('HairClump_S3', [V((0.26, -0.34, 0.90)), V((-0.18, -0.30, 0.94)), V((-0.60, 0.15, 0.78)), bd], 0.090, 0.032, 0.006),
+        ('HairClump_S1', [V((0.34, -0.60, 0.72)), V((-0.02, -0.80, 0.60)), V((-0.70, -0.62, 0.32)), V((-0.96, 0.02, 0.26)), bd], 0.064, 0.036, 0.0),
+        ('HairClump_S2', [V((0.36, -0.48, 0.80)), V((0.00, -0.66, 0.75)), V((-0.60, -0.48, 0.62)), V((-0.86, 0.12, 0.50)), bd], 0.072, 0.040, 0.0),
+
         # her left side, from the left temple back over the crown to the bun
-        ('HairClump_L1', [V((0.62, -0.52, 0.58)), V((0.86, 0.02, 0.50)), V((0.42, 0.74, 0.52)), bd], 0.075, 0.028, 0.002),
-        ('HairClump_L2', [V((0.46, -0.30, 0.84)), V((0.44, 0.32, 0.85)), V((-0.08, 0.74, 0.66)), bd], 0.085, 0.030, 0.004),
-        # nape + behind her right ear, rising to the bun
-        ('HairClump_N1', [V((0.52, 0.66, -0.40)), V((0.16, 0.86, -0.02)), bd], 0.085, 0.026, 0.0),
-        ('HairClump_N2', [V((-0.38, 0.80, -0.46)), V((-0.56, 0.74, -0.06)), bd], 0.080, 0.026, 0.0),
-        ('HairClump_R1', [V((-0.90, 0.28, -0.12)), V((-0.84, 0.46, 0.16)), bd], 0.070, 0.024, 0.0),
+        ('HairClump_L1', [V((0.62, -0.52, 0.58)), V((0.86, 0.02, 0.50)), V((0.42, 0.74, 0.52)), bd], 0.066, 0.036, 0.0),
+
     ]
     for name, ws, w, th, lift in CL:
         clump(name, ws, w, th, lift=lift)
