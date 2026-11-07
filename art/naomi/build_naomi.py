@@ -22,7 +22,7 @@ P = dict(
     head_c=V((0, 0.0, 0.800)), head_rx=0.162, head_ry=0.142, head_rz_top=0.146, head_rz_bot=0.146,
     cheek_amp=0.13, cheek_low=-0.40, chin_narrow=0.10,
     eye_x=0.065, eye_z=0.778, eye_r=0.050, eye_depth=0.62, eye_out=0.10,
-    lid_up=47, lid_low=-42, lid_corner=4,
+    lid_up=35, lid_low=-42, lid_corner=4,
     brow_z=0.834,
     mouth_z=0.703, nose_z=0.742,
     collar_z=0.645, waist_z=0.474, hem_z=0.128, hem_rx=0.235, hem_ry=0.205,
@@ -218,7 +218,7 @@ for sg in (1, -1):
         e = math.radians(P['lid_up'] if top else P['lid_low'])
         k = math.sqrt(max(0.0, 1 - (a / am) ** 2))
         # outer corner (a>0) slightly lifted, inner corner lower
-        corner = bc + (0.08 if a > 0 else -0.05) * abs(a / am)
+        corner = bc + (0.08 if a < 0 else -0.05) * abs(a / am)   # a < 0 = outer corner (lifted)
         return corner + (e - corner) * k
 
     def lid(top, c=c, f=f, r=r, u=u):
@@ -237,20 +237,21 @@ for sg in (1, -1):
     # upper lash line: thick, heavier toward the outer corner, with a flick
     pts, nrm = [], []
     for k in range(40):
-        a = (-0.92 + 1.98 * k / 39) * am
+        a = (0.92 - 1.98 * k / 39) * am   # runs inner -> outer so the line thickens toward the outer corner
         b = edge(max(-am, min(am, a)), True) + math.radians(2)
         d = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
         pts.append(c + d * er * 1.075)
         nrm.append(d)
-    K.subsurf(K.sweep(f'Lash{sg}', pts, lambda t: (0.0040 + 0.0050 * t ** 1.6, 0.0016 + 0.0020 * t), nprof=8, mat=M['lash'], normals=nrm), 1)
-    for k, (a0, ln, curl) in enumerate([(0.98, 0.026, 0.9)]):   # one neat outer flick
-        a = a0 * am
-        b = edge(min(am, a), True)
+    K.subsurf(K.sweep(f'Lash{sg}', pts, lambda t: (0.0058 + 0.0060 * t ** 1.4, 0.0024 + 0.0026 * t), nprof=8, mat=M['lash'], normals=nrm), 1)
+    for k, (a0, ln, curl) in enumerate([(1.00, 0.036, 0.9)] + [(0.28 + 0.08 * i, 0.010 + 0.0016 * i, 0.5) for i in range(8)]):   # outer flick + feathered lashes
+        a = -a0 * am   # outer side
+        b = edge(max(-am, a), True)
         d0 = f * math.cos(b) * math.cos(a) + r * math.cos(b) * math.sin(a) + u * math.sin(b)
         p0 = c + d0 * er * 1.07
-        tip_dir = (r * 0.9 + u * 0.6 + f * 0.2).normalized()
+        tip_dir = (-r * 0.9 + u * 0.6 + f * 0.2).normalized()
         lp = [p0 + (tip_dir * t * ln + u * (t * t) * ln * curl * 0.5) for t in [i / 7 for i in range(8)]]
-        K.subsurf(K.sweep(f'LashFlick{sg}{k}', lp, lambda t: (0.0040 * (1 - t) ** 0.8 + 0.0003, 0.0017 * (1 - t) + 0.0002), nprof=8, mat=M['lash'], up=f), 1)
+        w0 = 0.0052 if k == 0 else 0.0026
+        K.subsurf(K.sweep(f'LashFlick{sg}{k}', lp, lambda t, w0=w0: (w0 * (1 - t) ** 0.8 + 0.0003, w0 * 0.45 * (1 - t) + 0.0002), nprof=8, mat=M['lash'], up=f), 1)
     # lid crease: soft darker line above the upper lid
     pts, nrm = [], []
     for k in range(30):
@@ -272,7 +273,7 @@ for sg in (1, -1):
     for k in range(20):
         t = k / 19
         x = sg * (0.030 + 0.085 * t)
-        z = P['brow_z'] + 0.014 * math.sin(math.pi * (0.25 + 0.75 * t)) - 0.012 * t
+        z = P['brow_z'] + 0.020 * math.sin(math.pi * (0.20 + 0.80 * t)) - 0.014 * t   # stronger arch (round 24)
         d = V((x / P['head_rx'], -0.80, (z - C.z) / P['head_rz_top'])).normalized()
         for _ in range(4):  # project onto the surface (fixed point on height)
             pp = head_point(d)
@@ -281,7 +282,7 @@ for sg in (1, -1):
         pp = head_point(d)
         bp.append(pp + (pp - C).normalized() * 0.003)
         bn.append((pp - C).normalized())
-    K.subsurf(K.sweep(f'Brow{sg}', bp, lambda t: (0.0028, 0.0058 * (1 - 0.6 * t) * min(1, t * 6 + 0.35)), nprof=8, mat=M['brow'], normals=bn), 1)
+    K.subsurf(K.sweep(f'Brow{sg}', bp, lambda t: (0.0036, 0.0088 * (1 - 0.45 * t) * min(1, t * 6 + 0.35)), nprof=8, mat=M['brow'], normals=bn), 1)
 
 # mouth: soft closed smile — darker line curving up at the corners, fuller lower lip, thin upper lip
 def on_face(x, z, lift):
